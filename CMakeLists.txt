@@ -15,12 +15,12 @@ add_executable(realtime ${SRCS})
 # find_package(PNG REQUIRED)
 # include_directories(${PNG_INCLUDE_DIR})
 
-# find_package(ASSIMP REQUIRED)
-# include_directories(${ASSIMP_INCLUDE_DIR})
+find_package(ASSIMP REQUIRED)
+include_directories(${ASSIMP_INCLUDE_DIR})
 
 find_package(glfw3 3.2 REQUIRED)
 
-target_link_libraries(realtime glfw GL dl)
+target_link_libraries(realtime assimp glfw GL dl)
 
 if (CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
