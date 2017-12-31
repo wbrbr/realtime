@@ -18,6 +18,7 @@ GLFWwindow* initWindow()
     {
         return nullptr;
     }
+    glfwWindowHint(GLFW_RESIZABLE, 0);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -76,11 +77,14 @@ int main()
     glGenBuffers(1, &vbo);
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, mesh->mNumVertices * 3 * sizeof(float), mesh->mVertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, mesh->mNumVertices * 6 * sizeof(float), NULL, GL_STATIC_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, mesh->mNumVertices * 3 * sizeof(float), mesh->mVertices);
+    glBufferSubData(GL_ARRAY_BUFFER, mesh->mNumVertices * 3 * sizeof(float), mesh->mNumVertices * 3 * sizeof(float), mesh->mNormals);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(mesh->mNumVertices * 3 * sizeof(float)));
     // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(0);
-    // glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(1);
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -97,7 +101,7 @@ int main()
     auto model = glm::mat4();
     model = glm::rotate(model, glm::radians(30.f), glm::vec3(0.f, 1.f, 0.f));
     auto view = glm::mat4();
-    view = glm::translate(view, glm::vec3(0.f, 0.f, -5.f));
+    view = glm::translate(view, glm::vec3(0.f, 0.f, -3.f));
     auto proj = glm::perspective(glm::radians(75.f), 16.f/9.f, 0.1f, 10.f);
     auto mvp = proj * view * model; // TODO: not true
 
@@ -106,10 +110,12 @@ int main()
 
     glClearColor(0.f, 0.f, 0.3f, 1.f);
     unsigned int mvp_loc = glGetUniformLocation(program, "mvp");
+    unsigned int light_loc = glGetUniformLocation(program, "light");
     while (!glfwWindowShouldClose(window))
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glUniformMatrix4fv(mvp_loc, 1, GL_FALSE, glm::value_ptr(mvp));
+        glUniform3f(light_loc, 0.f, 0.f, 3.f);
         glDrawArrays(GL_TRIANGLES, 0, mesh->mNumVertices);
         glfwSwapBuffers(window);
         glfwPollEvents();
