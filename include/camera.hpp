@@ -10,6 +10,7 @@ public:
 
     void translateRelative(glm::vec3 vel);
     glm::mat4 getViewMatrix();
+    glm::mat4 getPerspectiveMatrix();
 
 private:
     glm::mat4 getTransform();

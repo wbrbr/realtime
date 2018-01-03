@@ -102,15 +102,13 @@ int main()
 
     auto model = glm::mat4();
     model = glm::rotate(model, glm::radians(30.f), glm::vec3(0.f, 1.f, 0.f));
-    // auto view = glm::mat4();
-    // view = glm::translate(view, glm::vec3(0.f, 0.f, -3.f));
-    auto proj = glm::perspective(glm::radians(60.f), 16.f/9.f, 0.1f, 10.f);
 
     unsigned int program = loadShaderProgram("shaders/base.vert", "shaders/base.frag");
     glUseProgram(program);
 
     glClearColor(0.f, 0.f, 0.3f, 1.f);
-    unsigned int mvp_loc = glGetUniformLocation(program, "mvp");
+    unsigned int model_loc = glGetUniformLocation(program, "model");
+    unsigned int viewproj_loc = glGetUniformLocation(program, "viewproj");
     unsigned int light_loc = glGetUniformLocation(program, "light");
 
     double lastCursorX, lastCursorY;
@@ -141,11 +139,10 @@ int main()
         camera.rotation.x -= (currentCursorY - lastCursorY) * 0.001f;
         lastCursorX = currentCursorX;
         lastCursorY = currentCursorY;
-        auto view = camera.getViewMatrix();
-        auto mvp = proj * view * model;
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glUniformMatrix4fv(mvp_loc, 1, GL_FALSE, glm::value_ptr(mvp));
-        glUniform3f(light_loc, 0.f, 0.f, 3.f);
+        glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(viewproj_loc, 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
+        glUniform3f(light_loc, camera.position.x, camera.position.y, camera.position.z);
         glDrawArrays(GL_TRIANGLES, 0, mesh->mNumVertices);
         glfwSwapBuffers(window);
         glfwPollEvents();
