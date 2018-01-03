@@ -1,7 +1,6 @@
 #include "GL/gl3w.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include "shader.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include <assimp/Importer.hpp>
@@ -11,6 +10,8 @@
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "shader.hpp"
+#include "camera.hpp"
 
 GLFWwindow* initWindow()
 {
@@ -29,6 +30,7 @@ GLFWwindow* initWindow()
         glfwTerminate();
         return nullptr;
     }
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwMakeContextCurrent(window);
 
     if (gl3wInit())
@@ -58,10 +60,7 @@ int main()
         std::cerr << importer.GetErrorString() << std::endl;
         return 1;
     }
-    std::cout << scene->mNumMeshes << std::endl;
     aiMesh* mesh = scene->mMeshes[0];
-    std::cout << mesh->mName.C_Str() << std::endl;
-    std::cout << mesh->mNumVertices << std::endl;
 
     // int x, y, n;
     // unsigned char* data = stbi_load("image.png", &x, &y, &n, 4);
@@ -98,12 +97,14 @@ int main()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, x, y, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D); */
 
+    Camera camera;
+    camera.position.z += 3.f;
+
     auto model = glm::mat4();
     model = glm::rotate(model, glm::radians(30.f), glm::vec3(0.f, 1.f, 0.f));
-    auto view = glm::mat4();
-    view = glm::translate(view, glm::vec3(0.f, 0.f, -3.f));
-    auto proj = glm::perspective(glm::radians(75.f), 16.f/9.f, 0.1f, 10.f);
-    auto mvp = proj * view * model; // TODO: not true
+    // auto view = glm::mat4();
+    // view = glm::translate(view, glm::vec3(0.f, 0.f, -3.f));
+    auto proj = glm::perspective(glm::radians(60.f), 16.f/9.f, 0.1f, 10.f);
 
     unsigned int program = loadShaderProgram("shaders/base.vert", "shaders/base.frag");
     glUseProgram(program);
@@ -111,8 +112,37 @@ int main()
     glClearColor(0.f, 0.f, 0.3f, 1.f);
     unsigned int mvp_loc = glGetUniformLocation(program, "mvp");
     unsigned int light_loc = glGetUniformLocation(program, "light");
+
+    double lastCursorX, lastCursorY;
+    glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
     while (!glfwWindowShouldClose(window))
     {
+        if (glfwGetKey(window, GLFW_KEY_A)) {
+            camera.translateRelative(glm::vec3(-0.01f, 0.f, 0.f));
+        }
+        if (glfwGetKey(window, GLFW_KEY_D)) {
+            camera.translateRelative(glm::vec3(0.01f, 0.f, 0.f));
+        }
+        if (glfwGetKey(window, GLFW_KEY_W)) {
+            camera.translateRelative(glm::vec3(0.f, 0.f, -0.01f));
+        }
+        if (glfwGetKey(window, GLFW_KEY_S)) {
+            camera.translateRelative(glm::vec3(0.f, 0.f, 0.01f));
+        }
+        if (glfwGetKey(window, GLFW_KEY_SPACE)) {
+            camera.position.y += 0.01f;
+        }
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
+            camera.position.y -= 0.01f;
+        }
+        double currentCursorX, currentCursorY;
+        glfwGetCursorPos(window, &currentCursorX, &currentCursorY);
+        camera.rotation.y -= (currentCursorX - lastCursorX) * 0.001f;
+        camera.rotation.x -= (currentCursorY - lastCursorY) * 0.001f;
+        lastCursorX = currentCursorX;
+        lastCursorY = currentCursorY;
+        auto view = camera.getViewMatrix();
+        auto mvp = proj * view * model;
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glUniformMatrix4fv(mvp_loc, 1, GL_FALSE, glm::value_ptr(mvp));
         glUniform3f(light_loc, 0.f, 0.f, 3.f);
