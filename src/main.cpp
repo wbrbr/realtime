@@ -102,7 +102,7 @@ int main()
     glEnable(GL_CULL_FACE);
 
     Object suzanne;
-    suzanne.mesh = loadMesh("mesh.obj").value();
+    suzanne.mesh = loadMesh("suzanne.obj").value();
 
     Object plane;
     plane.mesh = loadMesh("plane.obj").value();
