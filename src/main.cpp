@@ -108,8 +108,8 @@ int main()
     plane.mesh = loadMesh("plane.obj").value();
     plane.transform.position.y -= 0.5f;
 
-    /* glEnable(GL_TEXTURE_2D);
-    glEnable(GL_BLEND);
+    glEnable(GL_TEXTURE_2D);
+    /* glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     unsigned int texture;
     glGenTextures(1, &texture);
@@ -121,7 +121,24 @@ int main()
     camera.transform.position.z += 3.f;
 
     unsigned int program = loadShaderProgram("shaders/base.vert", "shaders/base.frag");
-    glUseProgram(program);
+    unsigned int depth_program = loadShaderProgram("shaders/base.vert", "shaders/depth.frag");
+    unsigned int ssao_program = loadShaderProgram("shaders/base.vert", "shaders/ssao.frag");
+
+    unsigned int fbo;
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    unsigned int depth_texture;
+    glGenTextures(1, &depth_texture);
+    glBindTexture(GL_TEXTURE_2D, depth_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, 800, 450, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glClearColor(0.f, 0.f, 0.3f, 1.f);
     unsigned int model_loc = glGetUniformLocation(program, "model");
@@ -157,9 +174,27 @@ int main()
         lastCursorX = currentCursorX;
         lastCursorY = currentCursorY;
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glUseProgram(depth_program);
         glUniformMatrix4fv(viewproj_loc, 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
         glUniform3f(light_loc, camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        // depth texture
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        // suzanne
+        glBindVertexArray(suzanne.mesh.vao);
+        glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
+        glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
+        // plane
+        glBindVertexArray(plane.mesh.vao);
+        glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
+        glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glUseProgram(ssao_program);
+        glUniformMatrix4fv(viewproj_loc, 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
+        glUniform3f(light_loc, camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        glBindTexture(GL_TEXTURE_2D, depth_texture);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         // suzanne
         glBindVertexArray(suzanne.mesh.vao);
         glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
