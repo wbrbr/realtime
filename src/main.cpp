@@ -10,8 +10,11 @@
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <optional>
 #include "shader.hpp"
 #include "camera.hpp"
+#include "mesh.hpp"
+#include "object.hpp"
 
 GLFWwindow* initWindow()
 {
@@ -46,6 +49,37 @@ GLFWwindow* initWindow()
     return window;
 }
 
+std::optional<Mesh> loadMesh(std::string path)
+{
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate);
+    if (!scene) {
+        std::cerr << importer.GetErrorString() << std::endl;
+        return {};
+    }
+    aiMesh* m = scene->mMeshes[0];
+
+    unsigned int vao, vbo;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, m->mNumVertices * 6 * sizeof(float), NULL, GL_STATIC_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, m->mNumVertices * 3 * sizeof(float), m->mVertices);
+    glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 3 * sizeof(float), m->mNumVertices * 3 * sizeof(float), m->mNormals);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(m->mNumVertices * 3 * sizeof(float)));
+    // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+
+    Mesh mesh;
+    mesh.vao = vao;
+    mesh.vbo = vbo;
+    mesh.numVertices = m->mNumVertices;
+    return mesh;
+}
+
 int main()
 {
     GLFWwindow* window = initWindow();
@@ -54,13 +88,6 @@ int main()
         return 1;
     }
 
-    Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile("mesh.obj", aiProcess_Triangulate);
-    if (!scene) {
-        std::cerr << importer.GetErrorString() << std::endl;
-        return 1;
-    }
-    aiMesh* mesh = scene->mMeshes[0];
 
     // int x, y, n;
     // unsigned char* data = stbi_load("image.png", &x, &y, &n, 4);
@@ -70,23 +97,16 @@ int main()
     //     std::cerr << "Texture loading failed: " << stbi_failure_reason() << std::endl;
     // }
 
-    unsigned int vao, vbo, ebo;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    glGenBuffers(1, &vbo);
-    glGenBuffers(1, &ebo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, mesh->mNumVertices * 6 * sizeof(float), NULL, GL_STATIC_DRAW);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, mesh->mNumVertices * 3 * sizeof(float), mesh->mVertices);
-    glBufferSubData(GL_ARRAY_BUFFER, mesh->mNumVertices * 3 * sizeof(float), mesh->mNumVertices * 3 * sizeof(float), mesh->mNormals);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(mesh->mNumVertices * 3 * sizeof(float)));
-    // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
+
+    Object suzanne;
+    suzanne.mesh = loadMesh("mesh.obj").value();
+
+    Object plane;
+    plane.mesh = loadMesh("plane.obj").value();
+    plane.transform.position.y -= 0.5f;
 
     /* glEnable(GL_TEXTURE_2D);
     glEnable(GL_BLEND);
@@ -98,10 +118,7 @@ int main()
     glGenerateMipmap(GL_TEXTURE_2D); */
 
     Camera camera;
-    camera.position.z += 3.f;
-
-    auto model = glm::mat4();
-    model = glm::rotate(model, glm::radians(30.f), glm::vec3(0.f, 1.f, 0.f));
+    camera.transform.position.z += 3.f;
 
     unsigned int program = loadShaderProgram("shaders/base.vert", "shaders/base.frag");
     glUseProgram(program);
@@ -116,34 +133,42 @@ int main()
     while (!glfwWindowShouldClose(window))
     {
         if (glfwGetKey(window, GLFW_KEY_A)) {
-            camera.translateRelative(glm::vec3(-0.01f, 0.f, 0.f));
+            camera.transform.translateRelative(glm::vec3(-0.01f, 0.f, 0.f));
         }
         if (glfwGetKey(window, GLFW_KEY_D)) {
-            camera.translateRelative(glm::vec3(0.01f, 0.f, 0.f));
+            camera.transform.translateRelative(glm::vec3(0.01f, 0.f, 0.f));
         }
         if (glfwGetKey(window, GLFW_KEY_W)) {
-            camera.translateRelative(glm::vec3(0.f, 0.f, -0.01f));
+            camera.transform.translateRelative(glm::vec3(0.f, 0.f, -0.01f));
         }
         if (glfwGetKey(window, GLFW_KEY_S)) {
-            camera.translateRelative(glm::vec3(0.f, 0.f, 0.01f));
+            camera.transform.translateRelative(glm::vec3(0.f, 0.f, 0.01f));
         }
         if (glfwGetKey(window, GLFW_KEY_SPACE)) {
-            camera.position.y += 0.01f;
+            camera.transform.position.y += 0.01f;
         }
         if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
-            camera.position.y -= 0.01f;
+            camera.transform.position.y -= 0.01f;
         }
         double currentCursorX, currentCursorY;
         glfwGetCursorPos(window, &currentCursorX, &currentCursorY);
-        camera.rotation.y -= (currentCursorX - lastCursorX) * 0.001f;
-        camera.rotation.x -= (currentCursorY - lastCursorY) * 0.001f;
+        camera.transform.rotation.y -= (currentCursorX - lastCursorX) * 0.001f;
+        camera.transform.rotation.x -= (currentCursorY - lastCursorY) * 0.001f;
         lastCursorX = currentCursorX;
         lastCursorY = currentCursorY;
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(viewproj_loc, 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
-        glUniform3f(light_loc, camera.position.x, camera.position.y, camera.position.z);
-        glDrawArrays(GL_TRIANGLES, 0, mesh->mNumVertices);
+        glUniform3f(light_loc, camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        // suzanne
+        glBindVertexArray(suzanne.mesh.vao);
+        glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
+        glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
+        // plane
+        glBindVertexArray(plane.mesh.vao);
+        glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
+        glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
