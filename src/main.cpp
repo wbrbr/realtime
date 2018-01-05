@@ -15,6 +15,7 @@
 #include "camera.hpp"
 #include "mesh.hpp"
 #include "object.hpp"
+#include "light.hpp"
 
 GLFWwindow* initWindow()
 {
@@ -122,7 +123,8 @@ int main()
 
     unsigned int program = loadShaderProgram("shaders/base.vert", "shaders/base.frag");
     unsigned int depth_program = loadShaderProgram("shaders/base.vert", "shaders/depth.frag");
-    unsigned int ssao_program = loadShaderProgram("shaders/base.vert", "shaders/ssao.frag");
+    // unsigned int ssao_program = loadShaderProgram("shaders/base.vert", "shaders/ssao.frag");
+    unsigned int shadow_program = loadShaderProgram("shaders/base.vert", "shaders/shadow.frag");
 
     unsigned int fbo;
     glGenFramebuffers(1, &fbo);
@@ -141,9 +143,11 @@ int main()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glClearColor(0.f, 0.f, 0.3f, 1.f);
+    // TODO: fix this vvvvvv
     unsigned int model_loc = glGetUniformLocation(program, "model");
     unsigned int viewproj_loc = glGetUniformLocation(program, "viewproj");
     unsigned int light_loc = glGetUniformLocation(program, "light");
+    unsigned int lightSpace_loc = glGetUniformLocation(shadow_program, "lightSpace");
 
     double lastCursorX, lastCursorY;
     glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
@@ -175,7 +179,10 @@ int main()
         lastCursorY = currentCursorY;
 
         glUseProgram(depth_program);
-        glUniformMatrix4fv(viewproj_loc, 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
+        glm::mat4 lightProjection = glm::ortho(-1.f, 1.f, -1.f, 1.f, 0.1f, 5.f);
+        glm::mat4 lightView = glm::lookAt(glm::vec3(0.f, 1.f, 1.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+        glm::mat4 lightviewproj = lightProjection * lightView;
+        glUniformMatrix4fv(viewproj_loc, 1, GL_FALSE, glm::value_ptr(lightviewproj));
         glUniform3f(light_loc, camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
         // depth texture
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -190,8 +197,9 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        glUseProgram(ssao_program);
+        glUseProgram(shadow_program);
         glUniformMatrix4fv(viewproj_loc, 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
+        glUniformMatrix4fv(lightSpace_loc, 1, GL_FALSE, glm::value_ptr(lightviewproj));
         glUniform3f(light_loc, camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
         glBindTexture(GL_TEXTURE_2D, depth_texture);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
