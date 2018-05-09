@@ -103,10 +103,10 @@ int main()
     glEnable(GL_CULL_FACE);
 
     Object suzanne;
-    suzanne.mesh = loadMesh("suzanne.obj").value();
+    suzanne.mesh = loadMesh("../meshes/suzanne.obj").value();
 
     Object plane;
-    plane.mesh = loadMesh("plane.obj").value();
+    plane.mesh = loadMesh("../meshes/plane.obj").value();
     plane.transform.position.y -= 0.5f;
 
     glEnable(GL_TEXTURE_2D);
