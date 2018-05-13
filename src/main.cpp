@@ -1,8 +1,6 @@
 #include "GL/gl3w.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -16,6 +14,7 @@
 #include "mesh.hpp"
 #include "object.hpp"
 #include "light.hpp"
+#include "texture.hpp"
 
 GLFWwindow* initWindow()
 {
@@ -65,14 +64,35 @@ std::optional<Mesh> loadMesh(std::string path)
     glBindVertexArray(vao);
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, m->mNumVertices * 6 * sizeof(float), NULL, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, m->mNumVertices * 9 * sizeof(float), NULL, GL_STATIC_DRAW);
     glBufferSubData(GL_ARRAY_BUFFER, 0, m->mNumVertices * 3 * sizeof(float), m->mVertices);
     glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 3 * sizeof(float), m->mNumVertices * 3 * sizeof(float), m->mNormals);
+    if (m->HasTextureCoords(0)) {
+        float* texcoords = static_cast<float*>(malloc(m->mNumVertices * 2 * sizeof(float)));
+        for (unsigned int i = 0; i < m->mNumVertices; i++)
+        {
+            auto vec = m->mTextureCoords[0][i];
+            texcoords[2*i] = vec.x;
+            texcoords[2*i+1] = 1.f - vec.y;
+        }
+        glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 6 * sizeof(float), m->mNumVertices * 2 * sizeof(float), texcoords);
+        free(texcoords);
+    } else {
+        float* zero = static_cast<float*>(malloc(m->mNumVertices * 2 * sizeof(float)));
+        for (unsigned int i = 0; i < m->mNumVertices * 2; i++)
+        {
+            zero[i] = 0.f;
+        }
+        glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 6 * sizeof(float), m->mNumVertices * 2 * sizeof(float), zero);
+        free(zero);
+    }
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(m->mNumVertices * 3 * sizeof(float)));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(m->mNumVertices * 6 * sizeof(float)));
     // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
 
     Mesh mesh;
     mesh.vao = vao;
@@ -88,16 +108,6 @@ int main()
     {
         return 1;
     }
-
-
-    // int x, y, n;
-    // unsigned char* data = stbi_load("image.png", &x, &y, &n, 4);
-
-    // if (data == NULL)
-    // {
-    //     std::cerr << "Texture loading failed: " << stbi_failure_reason() << std::endl;
-    // }
-
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -142,12 +152,17 @@ int main()
     glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    ImageTexture imgtex("image.png");
+    ImageTexture suzannetex("suzanne.png");
+
     glClearColor(0.f, 0.f, 0.3f, 1.f);
     // TODO: fix this vvvvvv
     unsigned int model_loc = glGetUniformLocation(program, "model");
     unsigned int viewproj_loc = glGetUniformLocation(program, "viewproj");
     unsigned int light_loc = glGetUniformLocation(program, "light");
     unsigned int lightSpace_loc = glGetUniformLocation(shadow_program, "lightSpace");
+    unsigned int depthTexture_loc = glGetUniformLocation(shadow_program, "depth_texture");
+    unsigned int imageTexture_loc = glGetUniformLocation(shadow_program, "image_texture");
 
     double lastCursorX, lastCursorY;
     glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
@@ -178,36 +193,52 @@ int main()
         lastCursorX = currentCursorX;
         lastCursorY = currentCursorY;
 
+        // DEPTH PROGRAM
         glUseProgram(depth_program);
         glm::mat4 lightProjection = glm::ortho(-1.f, 1.f, -1.f, 1.f, 0.1f, 5.f);
         glm::mat4 lightView = glm::lookAt(glm::vec3(0.f, 1.f, 1.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
         glm::mat4 lightviewproj = lightProjection * lightView;
         glUniformMatrix4fv(viewproj_loc, 1, GL_FALSE, glm::value_ptr(lightviewproj));
         glUniform3f(light_loc, camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+
         // depth texture
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glClear(GL_DEPTH_BUFFER_BIT);
+
         // suzanne
         glBindVertexArray(suzanne.mesh.vao);
         glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
+
         // plane
         glBindVertexArray(plane.mesh.vao);
         glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+        // SHADOW PROGRAM
         glUseProgram(shadow_program);
         glUniformMatrix4fv(viewproj_loc, 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
         glUniformMatrix4fv(lightSpace_loc, 1, GL_FALSE, glm::value_ptr(lightviewproj));
         glUniform3f(light_loc, camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        glUniform1i(depthTexture_loc, 0);
+        glUniform1i(imageTexture_loc, 1);
+
+        glActiveTexture(GL_TEXTURE0 + 0);
         glBindTexture(GL_TEXTURE_2D, depth_texture);
+
+        glActiveTexture(GL_TEXTURE0 + 1);
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
         // suzanne
+        glBindTexture(GL_TEXTURE_2D, suzannetex.id());
         glBindVertexArray(suzanne.mesh.vao);
         glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
+
         // plane
+        glBindTexture(GL_TEXTURE_2D, imgtex.id());
         glBindVertexArray(plane.mesh.vao);
         glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
