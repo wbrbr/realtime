@@ -119,6 +119,9 @@ int main()
     plane.mesh = loadMesh("../meshes/plane.obj").value();
     plane.transform.position.y -= 0.5f;
 
+    Object cube;
+    cube.mesh = loadMesh("../meshes/skybox.obj").value();
+
     glEnable(GL_TEXTURE_2D);
     /* glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -135,6 +138,7 @@ int main()
     unsigned int depth_program = loadShaderProgram("shaders/base.vert", "shaders/depth.frag");
     // unsigned int ssao_program = loadShaderProgram("shaders/base.vert", "shaders/ssao.frag");
     unsigned int shadow_program = loadShaderProgram("shaders/base.vert", "shaders/shadow.frag");
+    unsigned int skybox_program = loadShaderProgram("shaders/skybox.vert", "shaders/skybox.frag");
 
     unsigned int fbo;
     glGenFramebuffers(1, &fbo);
@@ -154,6 +158,7 @@ int main()
 
     ImageTexture imgtex("image.png");
     ImageTexture suzannetex("suzanne.png");
+    Cubemap skybox("desertsky_up.tga", "desertsky_dn.tga", "desertsky_lf.tga", "desertsky_rt.tga", "desertsky_ft.tga", "desertsky_bk.tga");
 
     glClearColor(0.f, 0.f, 0.3f, 1.f);
     // TODO: fix this vvvvvv
@@ -163,6 +168,7 @@ int main()
     unsigned int lightSpace_loc = glGetUniformLocation(shadow_program, "lightSpace");
     unsigned int depthTexture_loc = glGetUniformLocation(shadow_program, "depth_texture");
     unsigned int imageTexture_loc = glGetUniformLocation(shadow_program, "image_texture");
+    unsigned int skyboxViewproj_loc = glGetUniformLocation(skybox_program, "viewproj");
 
     double lastCursorX, lastCursorY;
     glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
@@ -216,6 +222,17 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // SKYBOX PROGRAM
+        glDepthMask(GL_FALSE);
+        glUseProgram(skybox_program);
+        glUniformMatrix4fv(skyboxViewproj_loc, 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix())))); // remove the translation
+        glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.id());
+        glBindVertexArray(cube.mesh.vao);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDepthMask(GL_TRUE);
+
         // SHADOW PROGRAM
         glUseProgram(shadow_program);
         glUniformMatrix4fv(viewproj_loc, 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
@@ -229,7 +246,6 @@ int main()
 
         glActiveTexture(GL_TEXTURE0 + 1);
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // suzanne
         glBindTexture(GL_TEXTURE_2D, suzannetex.id());
