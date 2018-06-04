@@ -134,11 +134,12 @@ int main()
     Camera camera;
     camera.transform.position.z += 3.f;
 
-    unsigned int program = loadShaderProgram("shaders/base.vert", "shaders/base.frag");
-    unsigned int depth_program = loadShaderProgram("shaders/base.vert", "shaders/depth.frag");
+
+    Shader program("shaders/base.vert", "shaders/base.frag");
+    Shader depth_program("shaders/base.vert", "shaders/depth.frag");
     // unsigned int ssao_program = loadShaderProgram("shaders/base.vert", "shaders/ssao.frag");
-    unsigned int shadow_program = loadShaderProgram("shaders/base.vert", "shaders/shadow.frag");
-    unsigned int skybox_program = loadShaderProgram("shaders/skybox.vert", "shaders/skybox.frag");
+    Shader shadow_program("shaders/base.vert", "shaders/shadow.frag");
+    Shader skybox_program("shaders/skybox.vert", "shaders/skybox.frag");
 
     unsigned int fbo;
     glGenFramebuffers(1, &fbo);
@@ -162,13 +163,14 @@ int main()
 
     glClearColor(0.f, 0.f, 0.3f, 1.f);
     // TODO: fix this vvvvvv
-    unsigned int model_loc = glGetUniformLocation(program, "model");
+    /* unsigned int model_loc = glGetUniformLocation(program, "model");
     unsigned int viewproj_loc = glGetUniformLocation(program, "viewproj");
     unsigned int light_loc = glGetUniformLocation(program, "light");
     unsigned int lightSpace_loc = glGetUniformLocation(shadow_program, "lightSpace");
     unsigned int depthTexture_loc = glGetUniformLocation(shadow_program, "depth_texture");
     unsigned int imageTexture_loc = glGetUniformLocation(shadow_program, "image_texture");
-    unsigned int skyboxViewproj_loc = glGetUniformLocation(skybox_program, "viewproj");
+    unsigned int cameraPosition_loc = glGetUniformLocation(shadow_program, "camera_position");
+    unsigned int skyboxViewproj_loc = glGetUniformLocation(skybox_program, "viewproj"); */
 
     double lastCursorX, lastCursorY;
     glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
@@ -200,12 +202,12 @@ int main()
         lastCursorY = currentCursorY;
 
         // DEPTH PROGRAM
-        glUseProgram(depth_program);
+        glUseProgram(depth_program.id());
         glm::mat4 lightProjection = glm::ortho(-1.f, 1.f, -1.f, 1.f, 0.1f, 5.f);
         glm::mat4 lightView = glm::lookAt(glm::vec3(0.f, 1.f, 1.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
         glm::mat4 lightviewproj = lightProjection * lightView;
-        glUniformMatrix4fv(viewproj_loc, 1, GL_FALSE, glm::value_ptr(lightviewproj));
-        glUniform3f(light_loc, camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        glUniformMatrix4fv(depth_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(lightviewproj));
+        glUniform3f(depth_program.getLoc("light"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
 
         // depth texture
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -213,12 +215,12 @@ int main()
 
         // suzanne
         glBindVertexArray(suzanne.mesh.vao);
-        glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
+        glUniformMatrix4fv(depth_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
 
         // plane
         glBindVertexArray(plane.mesh.vao);
-        glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
+        glUniformMatrix4fv(depth_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -226,37 +228,42 @@ int main()
 
         // SKYBOX PROGRAM
         glDepthMask(GL_FALSE);
-        glUseProgram(skybox_program);
-        glUniformMatrix4fv(skyboxViewproj_loc, 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix())))); // remove the translation
+        glUseProgram(skybox_program.id());
+        glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix())))); // remove the translation
         glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.id());
         glBindVertexArray(cube.mesh.vao);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glDepthMask(GL_TRUE);
 
         // SHADOW PROGRAM
-        glUseProgram(shadow_program);
-        glUniformMatrix4fv(viewproj_loc, 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
-        glUniformMatrix4fv(lightSpace_loc, 1, GL_FALSE, glm::value_ptr(lightviewproj));
-        glUniform3f(light_loc, camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
-        glUniform1i(depthTexture_loc, 0);
-        glUniform1i(imageTexture_loc, 1);
+        glUseProgram(shadow_program.id());
+        glUniformMatrix4fv(shadow_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
+        glUniformMatrix4fv(shadow_program.getLoc("lightSpace"), 1, GL_FALSE, glm::value_ptr(lightviewproj));
+        glUniform3f(shadow_program.getLoc("camera_position"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        glUniform3f(shadow_program.getLoc("light"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        glUniform1i(shadow_program.getLoc("depth_texture"), 0);
+        glUniform1i(shadow_program.getLoc("skybox"), 1);
+        glUniform1i(shadow_program.getLoc("image_texture"), 2);
 
         glActiveTexture(GL_TEXTURE0 + 0);
         glBindTexture(GL_TEXTURE_2D, depth_texture);
 
         glActiveTexture(GL_TEXTURE0 + 1);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.id());
+
+        glActiveTexture(GL_TEXTURE0 + 2);
 
 
         // suzanne
         glBindTexture(GL_TEXTURE_2D, suzannetex.id());
         glBindVertexArray(suzanne.mesh.vao);
-        glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
+        glUniformMatrix4fv(shadow_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
 
         // plane
         glBindTexture(GL_TEXTURE_2D, imgtex.id());
         glBindVertexArray(plane.mesh.vao);
-        glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
+        glUniformMatrix4fv(shadow_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
 
         glfwSwapBuffers(window);

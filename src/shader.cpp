@@ -70,3 +70,31 @@ unsigned int loadShaderProgram(std::string vPath, std::string fPath)
     unsigned int program = loadShaderProgramFromSource(vertex_source.c_str(), fragment_source.c_str());
     return program;
 }
+
+Shader::Shader(std::string vPath, std::string fPath)
+{
+    m_id = loadShaderProgram(vPath, fPath);
+}
+
+Shader::~Shader()
+{
+    glDeleteProgram(m_id);
+}
+
+unsigned int Shader::id()
+{
+    return m_id;
+}
+
+int Shader::getLoc(std::string name)
+{
+    auto it = m_locs.find(name);
+    if (it == m_locs.end()) {
+        int loc = glGetUniformLocation(m_id, name.c_str());
+        if (loc == -1) std::cerr << "Invalid or inactive uniform: " << name << std::endl;
+        m_locs[name] = loc; // WARNING: will even cache -1
+        return loc;
+    } else {
+        return it->second;
+    }
+}

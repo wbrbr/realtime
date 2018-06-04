@@ -7,7 +7,9 @@ in vec2 TexCoords;
 out vec4 outColor;
 
 uniform vec3 light;
+uniform vec3 camera_position;
 uniform sampler2D depth_texture;
+uniform samplerCube skybox;
 uniform sampler2D image_texture;
 uniform mat4 lightSpace;
 
@@ -27,9 +29,12 @@ void main()
     vec3 obj_to_light = normalize(light - Position);
     float intensity = dot(Normal, obj_to_light) * visibility;
 
-    vec3 texColor = texture(image_texture, TexCoords).rgb;
+    vec3 incident = Position - camera_position;
+    vec3 reflected = reflect(incident, Normal);
+
+    // vec3 texColor = texture(image_texture, TexCoords).rgb;
+    vec3 texColor = texture(skybox, reflected).rgb;
 
     vec4 color = vec4(texColor * intensity, 1.f);
-    // vec4 color = vec4(TexCoords.r * intensity, TexCoords.g * intensity, 0.f, 1.f);
     outColor = vec4(pow(color.r, 0.4545), pow(color.g, 0.4545), pow(color.b, 0.4545), 1.0);
 }
