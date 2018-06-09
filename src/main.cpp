@@ -140,6 +140,7 @@ int main()
     // unsigned int ssao_program = loadShaderProgram("shaders/base.vert", "shaders/ssao.frag");
     Shader shadow_program("shaders/base.vert", "shaders/shadow.frag");
     Shader skybox_program("shaders/skybox.vert", "shaders/skybox.frag");
+    Shader pbr_program("shaders/base.vert", "shaders/pbr.frag");
 
     unsigned int fbo;
     glGenFramebuffers(1, &fbo);
@@ -207,7 +208,7 @@ int main()
         glm::mat4 lightView = glm::lookAt(glm::vec3(0.f, 1.f, 1.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
         glm::mat4 lightviewproj = lightProjection * lightView;
         glUniformMatrix4fv(depth_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(lightviewproj));
-        glUniform3f(depth_program.getLoc("light"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        // glUniform3f(depth_program.getLoc("light"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
 
         // depth texture
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -235,7 +236,7 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glDepthMask(GL_TRUE);
 
-        // SHADOW PROGRAM
+        /* // SHADOW PROGRAM
         glUseProgram(shadow_program.id());
         glUniformMatrix4fv(shadow_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
         glUniformMatrix4fv(shadow_program.getLoc("lightSpace"), 1, GL_FALSE, glm::value_ptr(lightviewproj));
@@ -251,19 +252,31 @@ int main()
         glActiveTexture(GL_TEXTURE0 + 1);
         glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.id());
 
-        glActiveTexture(GL_TEXTURE0 + 2);
+        glActiveTexture(GL_TEXTURE0 + 2); */
+
+        // PBR PROGRAM
+        glUseProgram(pbr_program.id());
+        glUniformMatrix4fv(pbr_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
+        glUniform3f(pbr_program.getLoc("camPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        glUniform3f(pbr_program.getLoc("lightPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
 
 
         // suzanne
-        glBindTexture(GL_TEXTURE_2D, suzannetex.id());
+        // glBindTexture(GL_TEXTURE_2D, suzannetex.id());
         glBindVertexArray(suzanne.mesh.vao);
         glUniformMatrix4fv(shadow_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
+        glUniform3f(pbr_program.getLoc("albedo"), 1.0, 0.1, 0.1);
+        glUniform1f(pbr_program.getLoc("metallic"), 0.0);
+        glUniform1f(pbr_program.getLoc("roughness"), 0.7);
         glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
 
         // plane
-        glBindTexture(GL_TEXTURE_2D, imgtex.id());
+        // glBindTexture(GL_TEXTURE_2D, imgtex.id());
         glBindVertexArray(plane.mesh.vao);
         glUniformMatrix4fv(shadow_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
+        glUniform3f(pbr_program.getLoc("albedo"), 0.4, 0.4, 0.4);
+        glUniform1f(pbr_program.getLoc("metallic"), 1.0);
+        glUniform1f(pbr_program.getLoc("roughness"), 0.9);
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
 
         glfwSwapBuffers(window);
