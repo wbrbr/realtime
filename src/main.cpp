@@ -113,7 +113,7 @@ int main()
     glEnable(GL_CULL_FACE);
 
     Object suzanne;
-    suzanne.mesh = loadMesh("../meshes/suzanne.obj").value();
+    suzanne.mesh = loadMesh("../meshes/suzanne2.obj").value();
 
     Object plane;
     plane.mesh = loadMesh("../meshes/plane.obj").value();
@@ -141,6 +141,7 @@ int main()
     Shader shadow_program("shaders/base.vert", "shaders/shadow.frag");
     Shader skybox_program("shaders/skybox.vert", "shaders/skybox.frag");
     Shader pbr_program("shaders/base.vert", "shaders/pbr.frag");
+    Shader pbrtex_program("shaders/base.vert", "shaders/pbrtex.frag");
 
     unsigned int fbo;
     glGenFramebuffers(1, &fbo);
@@ -160,6 +161,9 @@ int main()
 
     ImageTexture imgtex("image.png");
     ImageTexture suzannetex("suzanne.png");
+    ImageTexture albedotex("rustediron2_basecolor.png");
+    ImageTexture metallictex("rustediron2_metallic.png");
+    ImageTexture roughnesstex("rustediron2_roughness.png");
     Cubemap skybox("desertsky_up.tga", "desertsky_dn.tga", "desertsky_lf.tga", "desertsky_rt.tga", "desertsky_ft.tga", "desertsky_bk.tga");
 
     glClearColor(0.f, 0.f, 0.3f, 1.f);
@@ -255,28 +259,45 @@ int main()
         glActiveTexture(GL_TEXTURE0 + 2); */
 
         // PBR PROGRAM
-        glUseProgram(pbr_program.id());
+        /* glUseProgram(pbr_program.id());
         glUniformMatrix4fv(pbr_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
         glUniform3f(pbr_program.getLoc("camPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
-        glUniform3f(pbr_program.getLoc("lightPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        glUniform3f(pbr_program.getLoc("lightPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z); */
 
+        // PBR TEX PROGRAM
+        glUseProgram(pbrtex_program.id());
+        glUniformMatrix4fv(pbrtex_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
+        glUniform3f(pbrtex_program.getLoc("camPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        glUniform3f(pbrtex_program.getLoc("lightPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        glUniform1i(pbrtex_program.getLoc("albedoMap"), 0);
+        glUniform1i(pbrtex_program.getLoc("metallicMap"), 1);
+        glUniform1i(pbrtex_program.getLoc("roughnessMap"), 2);
+
+        glActiveTexture(GL_TEXTURE0 + 0);
+        glBindTexture(GL_TEXTURE_2D, albedotex.id());
+
+        glActiveTexture(GL_TEXTURE0 + 1);
+        glBindTexture(GL_TEXTURE_2D, metallictex.id());
+
+        glActiveTexture(GL_TEXTURE0 + 2);
+        glBindTexture(GL_TEXTURE_2D, roughnesstex.id());
 
         // suzanne
         // glBindTexture(GL_TEXTURE_2D, suzannetex.id());
         glBindVertexArray(suzanne.mesh.vao);
         glUniformMatrix4fv(shadow_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
-        glUniform3f(pbr_program.getLoc("albedo"), 1.0, 0.1, 0.1);
+        /* glUniform3f(pbr_program.getLoc("albedo"), 1.0, 0.1, 0.1);
         glUniform1f(pbr_program.getLoc("metallic"), 0.0);
-        glUniform1f(pbr_program.getLoc("roughness"), 0.7);
+        glUniform1f(pbr_program.getLoc("roughness"), 0.7); */
         glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
 
         // plane
         // glBindTexture(GL_TEXTURE_2D, imgtex.id());
         glBindVertexArray(plane.mesh.vao);
         glUniformMatrix4fv(shadow_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
-        glUniform3f(pbr_program.getLoc("albedo"), 0.4, 0.4, 0.4);
+        /*glUniform3f(pbr_program.getLoc("albedo"), 0.4, 0.4, 0.4);
         glUniform1f(pbr_program.getLoc("metallic"), 1.0);
-        glUniform1f(pbr_program.getLoc("roughness"), 0.9);
+        glUniform1f(pbr_program.getLoc("roughness"), 0.9); */
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
 
         glfwSwapBuffers(window);
