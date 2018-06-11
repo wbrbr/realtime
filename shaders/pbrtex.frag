@@ -2,7 +2,8 @@
 out vec4 FragColor;
 in vec2 TexCoords;
 in vec3 Position;
-in vec3 Normal;
+// in vec3 Normal;
+in mat3 TBN;
 
 uniform vec3 camPos;
 uniform vec3 lightPos;
@@ -10,6 +11,7 @@ uniform vec3 lightPos;
 uniform sampler2D albedoMap;
 uniform sampler2D metallicMap;
 uniform sampler2D roughnessMap;
+uniform sampler2D normalMap;
 
 const float PI = 3.14159265359;
 
@@ -71,15 +73,13 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 
 void main()
 {
-    vec3 N = normalize(Normal);
+    vec3 N = texture(normalMap, TexCoords).rgb;
+    N = normalize(N * 2.0 - 1.0);
+    N = normalize(TBN * N);
     vec3 V = normalize(camPos - Position);
     vec3 albedo = pow(texture(albedoMap, TexCoords).rgb, vec3(2.2));
     float metallic = texture(metallicMap, TexCoords).r;
     float roughness = texture(roughnessMap, TexCoords).r;
-
-    // FragColor = vec4(roughness, roughness, roughness, 1.0);
-    // FragColor = vec4(metallic, metallic, metallic, 1.0);
-    // return;
 
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);

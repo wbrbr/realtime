@@ -74,6 +74,7 @@ unsigned int loadShaderProgram(std::string vPath, std::string fPath)
 Shader::Shader(std::string vPath, std::string fPath)
 {
     m_id = loadShaderProgram(vPath, fPath);
+    m_name = vPath + "|" + fPath;
 }
 
 Shader::~Shader()
@@ -91,7 +92,7 @@ int Shader::getLoc(std::string name)
     auto it = m_locs.find(name);
     if (it == m_locs.end()) {
         int loc = glGetUniformLocation(m_id, name.c_str());
-        if (loc == -1) std::cerr << "Invalid or inactive uniform: " << name << std::endl;
+        if (loc == -1) std::cerr << m_name << ": Invalid or inactive uniform: " << name << std::endl;
         m_locs[name] = loc; // WARNING: will even cache -1
         return loc;
     } else {

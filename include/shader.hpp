@@ -17,5 +17,6 @@ public:
 private:
     unsigned int m_id;
     std::unordered_map<std::string, int> m_locs;
+    std::string m_name;
 };
 #endif

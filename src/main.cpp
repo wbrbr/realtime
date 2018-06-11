@@ -52,7 +52,7 @@ GLFWwindow* initWindow()
 std::optional<Mesh> loadMesh(std::string path)
 {
     Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate);
+    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace);
     if (!scene) {
         std::cerr << importer.GetErrorString() << std::endl;
         return {};
@@ -64,7 +64,7 @@ std::optional<Mesh> loadMesh(std::string path)
     glBindVertexArray(vao);
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, m->mNumVertices * 9 * sizeof(float), NULL, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, m->mNumVertices * 14 * sizeof(float), NULL, GL_STATIC_DRAW);
     glBufferSubData(GL_ARRAY_BUFFER, 0, m->mNumVertices * 3 * sizeof(float), m->mVertices);
     glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 3 * sizeof(float), m->mNumVertices * 3 * sizeof(float), m->mNormals);
     if (m->HasTextureCoords(0)) {
@@ -86,13 +86,19 @@ std::optional<Mesh> loadMesh(std::string path)
         glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 6 * sizeof(float), m->mNumVertices * 2 * sizeof(float), zero);
         free(zero);
     }
+    glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 8 * sizeof(float), m->mNumVertices * 3 * sizeof(float), m->mTangents);
+    glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 11 * sizeof(float), m->mNumVertices * 3 * sizeof(float), m->mBitangents);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(m->mNumVertices * 3 * sizeof(float)));
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(m->mNumVertices * 6 * sizeof(float)));
-    // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(m->mNumVertices * 8 * sizeof(float)));
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(m->mNumVertices * 11 * sizeof(float)));
+
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
+    glEnableVertexAttribArray(3);
+    glEnableVertexAttribArray(4);
 
     Mesh mesh;
     mesh.vao = vao;
@@ -135,13 +141,13 @@ int main()
     camera.transform.position.z += 3.f;
 
 
-    Shader program("shaders/base.vert", "shaders/base.frag");
+    // Shader program("shaders/base.vert", "shaders/base.frag");
     Shader depth_program("shaders/base.vert", "shaders/depth.frag");
     // unsigned int ssao_program = loadShaderProgram("shaders/base.vert", "shaders/ssao.frag");
-    Shader shadow_program("shaders/base.vert", "shaders/shadow.frag");
+    // Shader shadow_program("shaders/base.vert", "shaders/shadow.frag");
     Shader skybox_program("shaders/skybox.vert", "shaders/skybox.frag");
-    Shader pbr_program("shaders/base.vert", "shaders/pbr.frag");
-    Shader pbrtex_program("shaders/base.vert", "shaders/pbrtex.frag");
+    // Shader pbr_program("shaders/base.vert", "shaders/pbr.frag");
+    Shader pbrtex_program("shaders/pbr.vert", "shaders/pbrtex.frag");
 
     unsigned int fbo;
     glGenFramebuffers(1, &fbo);
@@ -161,9 +167,14 @@ int main()
 
     ImageTexture imgtex("image.png");
     ImageTexture suzannetex("suzanne.png");
-    ImageTexture albedotex("rustediron2_basecolor.png");
-    ImageTexture metallictex("rustediron2_metallic.png");
-    ImageTexture roughnesstex("rustediron2_roughness.png");
+    ImageTexture albedotex1("rustediron2_basecolor.png");
+    ImageTexture metallictex1("rustediron2_metallic.png");
+    ImageTexture roughnesstex1("rustediron2_roughness.png");
+    ImageTexture normaltex1("rustediron2_normal.png");
+    ImageTexture albedotex2("metalgrid3_basecolor.png");
+    ImageTexture metallictex2("metalgrid3_metallic.png");
+    ImageTexture roughnesstex2("metalgrid3_roughness.png");
+    ImageTexture normaltex2("metalgrid3_normal-ogl.png");
     Cubemap skybox("desertsky_up.tga", "desertsky_dn.tga", "desertsky_lf.tga", "desertsky_rt.tga", "desertsky_ft.tga", "desertsky_bk.tga");
 
     glClearColor(0.f, 0.f, 0.3f, 1.f);
@@ -272,32 +283,32 @@ int main()
         glUniform1i(pbrtex_program.getLoc("albedoMap"), 0);
         glUniform1i(pbrtex_program.getLoc("metallicMap"), 1);
         glUniform1i(pbrtex_program.getLoc("roughnessMap"), 2);
-
-        glActiveTexture(GL_TEXTURE0 + 0);
-        glBindTexture(GL_TEXTURE_2D, albedotex.id());
-
-        glActiveTexture(GL_TEXTURE0 + 1);
-        glBindTexture(GL_TEXTURE_2D, metallictex.id());
-
-        glActiveTexture(GL_TEXTURE0 + 2);
-        glBindTexture(GL_TEXTURE_2D, roughnesstex.id());
+        glUniform1i(pbrtex_program.getLoc("normalMap"), 3);
 
         // suzanne
-        // glBindTexture(GL_TEXTURE_2D, suzannetex.id());
+        glActiveTexture(GL_TEXTURE0 + 0);
+        glBindTexture(GL_TEXTURE_2D, albedotex1.id());
+        glActiveTexture(GL_TEXTURE0 + 1);
+        glBindTexture(GL_TEXTURE_2D, metallictex1.id());
+        glActiveTexture(GL_TEXTURE0 + 2);
+        glBindTexture(GL_TEXTURE_2D, roughnesstex1.id());
+        glActiveTexture(GL_TEXTURE0 + 3);
+        glBindTexture(GL_TEXTURE_2D, normaltex1.id());
         glBindVertexArray(suzanne.mesh.vao);
-        glUniformMatrix4fv(shadow_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
-        /* glUniform3f(pbr_program.getLoc("albedo"), 1.0, 0.1, 0.1);
-        glUniform1f(pbr_program.getLoc("metallic"), 0.0);
-        glUniform1f(pbr_program.getLoc("roughness"), 0.7); */
+        glUniformMatrix4fv(pbrtex_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
 
         // plane
-        // glBindTexture(GL_TEXTURE_2D, imgtex.id());
+        glActiveTexture(GL_TEXTURE0 + 0);
+        glBindTexture(GL_TEXTURE_2D, albedotex2.id());
+        glActiveTexture(GL_TEXTURE0 + 1);
+        glBindTexture(GL_TEXTURE_2D, metallictex2.id());
+        glActiveTexture(GL_TEXTURE0 + 2);
+        glBindTexture(GL_TEXTURE_2D, roughnesstex2.id());
         glBindVertexArray(plane.mesh.vao);
-        glUniformMatrix4fv(shadow_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
-        /*glUniform3f(pbr_program.getLoc("albedo"), 0.4, 0.4, 0.4);
-        glUniform1f(pbr_program.getLoc("metallic"), 1.0);
-        glUniform1f(pbr_program.getLoc("roughness"), 0.9); */
+        glActiveTexture(GL_TEXTURE0 + 3);
+        glBindTexture(GL_TEXTURE_2D, normaltex2.id());
+        glUniformMatrix4fv(pbrtex_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
 
         glfwSwapBuffers(window);
