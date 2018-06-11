@@ -52,7 +52,7 @@ GLFWwindow* initWindow()
 std::optional<Mesh> loadMesh(std::string path)
 {
     Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace);
+    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
     if (!scene) {
         std::cerr << importer.GetErrorString() << std::endl;
         return {};
@@ -73,7 +73,7 @@ std::optional<Mesh> loadMesh(std::string path)
         {
             auto vec = m->mTextureCoords[0][i];
             texcoords[2*i] = vec.x;
-            texcoords[2*i+1] = 1.f - vec.y;
+            texcoords[2*i+1] = vec.y;
         }
         glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 6 * sizeof(float), m->mNumVertices * 2 * sizeof(float), texcoords);
         free(texcoords);
