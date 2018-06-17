@@ -148,6 +148,7 @@ int main()
     Shader skybox_program("shaders/skybox.vert", "shaders/skybox.frag");
     // Shader pbr_program("shaders/base.vert", "shaders/pbr.frag");
     Shader pbrtex_program("shaders/pbr.vert", "shaders/pbrtex.frag");
+    Shader final_program("shaders/final.vert", "shaders/final.frag");
 
     unsigned int fbo;
     glGenFramebuffers(1, &fbo);
@@ -161,6 +162,18 @@ int main()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    unsigned int fbo2;
+    glGenFramebuffers(1, &fbo2);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
+    unsigned int screen_texture;
+    glGenTextures(1, &screen_texture);
+    glBindTexture(GL_TEXTURE_2D, screen_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 800, 450, 0, GL_RGBA, GL_FLOAT, NULL);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screen_texture, 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -217,7 +230,7 @@ int main()
         lastCursorX = currentCursorX;
         lastCursorY = currentCursorY;
 
-        // DEPTH PROGRAM
+        /* // DEPTH PROGRAM
         glUseProgram(depth_program.id());
         glm::mat4 lightProjection = glm::ortho(-1.f, 1.f, -1.f, 1.f, 0.1f, 5.f);
         glm::mat4 lightView = glm::lookAt(glm::vec3(0.f, 1.f, 1.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
@@ -238,9 +251,10 @@ int main()
         glBindVertexArray(plane.mesh.vao);
         glUniformMatrix4fv(depth_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);*/
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
         // SKYBOX PROGRAM
         glDepthMask(GL_FALSE);
@@ -284,6 +298,7 @@ int main()
         glUniform1i(pbrtex_program.getLoc("metallicMap"), 1);
         glUniform1i(pbrtex_program.getLoc("roughnessMap"), 2);
         glUniform1i(pbrtex_program.getLoc("normalMap"), 3);
+        // glUniform1i(pbrtex_program.getLoc("depthTex"), 4);
 
         // suzanne
         glActiveTexture(GL_TEXTURE0 + 0);
@@ -294,6 +309,8 @@ int main()
         glBindTexture(GL_TEXTURE_2D, roughnesstex1.id());
         glActiveTexture(GL_TEXTURE0 + 3);
         glBindTexture(GL_TEXTURE_2D, normaltex1.id());
+        // glActiveTexture(GL_TEXTURE0 + 4);
+        // glBindTexture(GL_TEXTURE_2D, depth_texture);
         glBindVertexArray(suzanne.mesh.vao);
         glUniformMatrix4fv(pbrtex_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
@@ -310,6 +327,15 @@ int main()
         glBindTexture(GL_TEXTURE_2D, normaltex2.id());
         glUniformMatrix4fv(pbrtex_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
+        
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        // FINAL DRAW
+        glUseProgram(final_program.id());
+        glBindTexture(GL_TEXTURE_2D, screen_texture);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

@@ -12,6 +12,7 @@ uniform sampler2D albedoMap;
 uniform sampler2D metallicMap;
 uniform sampler2D roughnessMap;
 uniform sampler2D normalMap;
+// uniform sampler2D depthTex;
 
 const float PI = 3.14159265359;
 
