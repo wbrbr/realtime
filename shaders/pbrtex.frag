@@ -107,7 +107,5 @@ void main()
     float NdotL = max(dot(N, L), 0.0);
     L0 += (kD * albedo / PI + specular) * radiance * NdotL; 
 
-    // L0 = L0 / (L0 + vec3(1.0));
-    // FragColor = vec4(pow(L0.r, 0.4545), pow(L0.g, 0.4545), pow(L0.b, 0.4545), 1.0);
-    FragColor = vec4(L0 / (L0 + vec3(1.0)), 1.0);
+    FragColor = vec4(L0, 1.0);
 }
