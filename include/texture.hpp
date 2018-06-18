@@ -5,7 +5,7 @@
 class ImageTexture
 {
 public:
-    ImageTexture(std::string path);
+    ImageTexture(std::string path, bool srgb = false);
     ~ImageTexture();
     unsigned int id();
     unsigned int width();
