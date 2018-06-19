@@ -182,7 +182,11 @@ int main()
     unsigned int depth2;
     glGenTextures(1, &depth2);
     glBindTexture(GL_TEXTURE_2D, depth2);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, 800, 450, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, 800, 450, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screen_texture, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth2, 0);
@@ -275,6 +279,7 @@ int main()
         glBindVertexArray(cube.mesh.vao);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glDepthMask(GL_TRUE);
+        // glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
         /* // SHADOW PROGRAM
         glUseProgram(shadow_program.id());
@@ -338,21 +343,25 @@ int main()
         glBindTexture(GL_TEXTURE_2D, normaltex2.id());
         glUniformMatrix4fv(pbrtex_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
-        
+
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glDisable(GL_DEPTH_TEST);
         
         // FINAL DRAW
         glUseProgram(final_program.id());
         glUniform1i(final_program.getLoc("tex"), 0);
+        glUniform1i(final_program.getLoc("depth"), 1);
+        glUniform1f(final_program.getLoc("zNear"), 0.1f);
+        glUniform1f(final_program.getLoc("zFar"), 5.f);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, screen_texture);
         glActiveTexture(GL_TEXTURE0 + 1);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindTexture(GL_TEXTURE_2D, depth2);
         glActiveTexture(GL_TEXTURE0 + 2);
         glBindTexture(GL_TEXTURE_2D, 0);
         glActiveTexture(GL_TEXTURE0 + 3);
         glBindTexture(GL_TEXTURE_2D, 0);
+
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
         glfwSwapBuffers(window);
