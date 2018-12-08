@@ -26,6 +26,7 @@ GLFWwindow* initWindow()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint( GLFW_OPENGL_DEBUG_CONTEXT, true );
 
     GLFWwindow* window = glfwCreateWindow(800, 450, "Real-time rendering", NULL, NULL);
     if (!window)
@@ -47,6 +48,11 @@ GLFWwindow* initWindow()
         return nullptr;
     }
     return window;
+}
+
+void dbgcallback( GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *msg, const void *data )
+{
+    std::cout << "debug call: " << msg << std::endl;
 }
 
 std::optional<Mesh> loadMesh(std::string path)
@@ -115,6 +121,7 @@ int main()
         return 1;
     }
 
+    glDebugMessageCallback(dbgcallback, NULL);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
@@ -148,11 +155,54 @@ int main()
     Shader skybox_program("shaders/skybox.vert", "shaders/skybox.frag");
     // Shader pbr_program("shaders/base.vert", "shaders/pbr.frag");
     Shader pbrtex_program("shaders/pbr.vert", "shaders/pbrtex.frag");
+    Shader deferred_program("shaders/deferred.vert", "shaders/deferred.frag");
     Shader final_program("shaders/final.vert", "shaders/final.frag");
 
+    // === INIT FBO ===
     unsigned int fbo;
     glGenFramebuffers(1, &fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    unsigned int albedo;
+    glGenTextures(1, &albedo);
+    glBindTexture(GL_TEXTURE_2D, albedo);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 800, 450, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, albedo, 0);
+
+    unsigned int normal_tex;
+    glGenTextures(1, &normal_tex);
+    glBindTexture(GL_TEXTURE_2D, normal_tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 800, 450, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normal_tex, 0);
+
+    unsigned int rough_met_tex;
+    glGenTextures(1, &rough_met_tex);
+    glBindTexture(GL_TEXTURE_2D, rough_met_tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 800, 450, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, rough_met_tex, 0);
+
+    unsigned int position_tex;
+    glGenTextures(1, &position_tex);
+    glBindTexture(GL_TEXTURE_2D, position_tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 800, 450, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, position_tex, 0);
+
     unsigned int depth_texture;
     glGenTextures(1, &depth_texture);
     glBindTexture(GL_TEXTURE_2D, depth_texture);
@@ -162,8 +212,9 @@ int main()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture, 0);
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
+
+    unsigned int attachments[4] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+    glDrawBuffers(4, attachments);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     unsigned int fbo2;
@@ -192,8 +243,8 @@ int main()
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth2, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    ImageTexture imgtex("image.png");
-    ImageTexture suzannetex("suzanne.png");
+    // ImageTexture imgtex("image.png");
+    // ImageTexture suzannetex("suzanne.png");
     ImageTexture albedotex1("rustediron2_basecolor.png");
     ImageTexture metallictex1("rustediron2_metallic.png");
     ImageTexture roughnesstex1("rustediron2_roughness.png");
@@ -267,18 +318,19 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);*/
 
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glEnable(GL_DEPTH_TEST);
+        glClearColor(0.f, 0.f, 0.0f, 1.f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
         // SKYBOX PROGRAM
-        glDepthMask(GL_FALSE);
+        /* glDepthMask(GL_FALSE);
         glUseProgram(skybox_program.id());
         glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix())))); // remove the translation
         glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.id());
         glBindVertexArray(cube.mesh.vao);
         glDrawArrays(GL_TRIANGLES, 0, 36);
-        glDepthMask(GL_TRUE);
+        glDepthMask(GL_TRUE); */
         // glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
         /* // SHADOW PROGRAM
@@ -306,14 +358,13 @@ int main()
         glUniform3f(pbr_program.getLoc("lightPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z); */
 
         // PBR TEX PROGRAM
-        glUseProgram(pbrtex_program.id());
-        glUniformMatrix4fv(pbrtex_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
-        glUniform3f(pbrtex_program.getLoc("camPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
-        glUniform3f(pbrtex_program.getLoc("lightPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
-        glUniform1i(pbrtex_program.getLoc("albedoMap"), 0);
-        glUniform1i(pbrtex_program.getLoc("metallicMap"), 1);
-        glUniform1i(pbrtex_program.getLoc("roughnessMap"), 2);
-        glUniform1i(pbrtex_program.getLoc("normalMap"), 3);
+        // glUseProgram(pbrtex_program.id());
+        glUseProgram(deferred_program.id());
+        glUniformMatrix4fv(deferred_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
+        glUniform1i(deferred_program.getLoc("albedoMap"), 0);
+        glUniform1i(deferred_program.getLoc("metallicMap"), 1);
+        glUniform1i(deferred_program.getLoc("roughnessMap"), 2);
+        glUniform1i(deferred_program.getLoc("normalMap"), 3);
         // glUniform1i(pbrtex_program.getLoc("depthTex"), 4);
 
         // suzanne
@@ -328,7 +379,7 @@ int main()
         // glActiveTexture(GL_TEXTURE0 + 4);
         // glBindTexture(GL_TEXTURE_2D, depth_texture);
         glBindVertexArray(suzanne.mesh.vao);
-        glUniformMatrix4fv(pbrtex_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
+        glUniformMatrix4fv(deferred_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
 
         // plane
@@ -341,26 +392,36 @@ int main()
         glBindVertexArray(plane.mesh.vao);
         glActiveTexture(GL_TEXTURE0 + 3);
         glBindTexture(GL_TEXTURE_2D, normaltex2.id());
-        glUniformMatrix4fv(pbrtex_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
+        glUniformMatrix4fv(deferred_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glDisable(GL_DEPTH_TEST);
+        glClearColor(0.f, 0.f, 0.3f, 1.f);
+        glClear(GL_COLOR_BUFFER_BIT); 
         
         // FINAL DRAW
         glUseProgram(final_program.id());
-        glUniform1i(final_program.getLoc("tex"), 0);
-        glUniform1i(final_program.getLoc("depth"), 1);
+        glUniform3f(final_program.getLoc("lightPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        glUniform3f(final_program.getLoc("camPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+        glUniform1i(final_program.getLoc("albedotex"), 0);
+        glUniform1i(final_program.getLoc("normaltex"), 1);
+        glUniform1i(final_program.getLoc("depthtex"), 2);
+        glUniform1i(final_program.getLoc("roughmettex"), 3);
+        glUniform1i(final_program.getLoc("positiontex"), 4);
         glUniform1f(final_program.getLoc("zNear"), 0.1f);
         glUniform1f(final_program.getLoc("zFar"), 5.f);
+
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, screen_texture);
-        glActiveTexture(GL_TEXTURE0 + 1);
-        glBindTexture(GL_TEXTURE_2D, depth2);
-        glActiveTexture(GL_TEXTURE0 + 2);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glActiveTexture(GL_TEXTURE0 + 3);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindTexture(GL_TEXTURE_2D, albedo);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, normal_tex);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, depth_texture);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, rough_met_tex);
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, position_tex);
 
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
