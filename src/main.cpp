@@ -52,7 +52,7 @@ GLFWwindow* initWindow()
     return window;
 }
 
-void dbgcallback( GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *msg, const void *data )
+void dbgcallback(__attribute__((unused)) GLenum source, __attribute__((unused)) GLenum type, __attribute__((unused)) GLuint id, __attribute__((unused)) GLenum severity, __attribute__((unused)) GLsizei length, __attribute__((unused)) const GLchar *msg, __attribute__((unused)) const void *data)
 {
     if (DBG_MODE) {
         std::cout << "debug call: " << msg << std::endl;
@@ -167,54 +167,16 @@ int main()
     glGenFramebuffers(1, &fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-    unsigned int albedo;
-    glGenTextures(1, &albedo);
-    glBindTexture(GL_TEXTURE_2D, albedo);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 800, 450, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    unsigned int albedo = create_texture(800, 450, GL_RGB32F, GL_RGB);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, albedo, 0);
-
-    unsigned int normal_tex;
-    glGenTextures(1, &normal_tex);
-    glBindTexture(GL_TEXTURE_2D, normal_tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 800, 450, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    unsigned int normal_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normal_tex, 0);
-
-    unsigned int rough_met_tex;
-    glGenTextures(1, &rough_met_tex);
-    glBindTexture(GL_TEXTURE_2D, rough_met_tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 800, 450, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    unsigned int rough_met_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, rough_met_tex, 0);
-
-    unsigned int position_tex;
-    glGenTextures(1, &position_tex);
-    glBindTexture(GL_TEXTURE_2D, position_tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 800, 450, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    unsigned int position_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, position_tex, 0);
 
-    unsigned int depth_texture;
-    glGenTextures(1, &depth_texture);
-    glBindTexture(GL_TEXTURE_2D, depth_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, 800, 450, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    unsigned int depth_texture = create_texture(800, 450, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture, 0);
 
     unsigned int attachments[4] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
@@ -225,30 +187,13 @@ int main()
     glGenFramebuffers(1, &fbo2);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
 
-    unsigned int screen_texture;
-    glGenTextures(1, &screen_texture);
-    glBindTexture(GL_TEXTURE_2D, screen_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, 800, 450, 0, GL_RGBA, GL_FLOAT, NULL);
-
-    unsigned int depth2;
-    glGenTextures(1, &depth2);
-    glBindTexture(GL_TEXTURE_2D, depth2);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, 800, 450, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    unsigned int screen_texture = create_texture(800, 450, GL_RGBA16F, GL_RGBA);
+    unsigned int depth2 = create_texture(800, 450, GL_DEPTH_COMPONENT24, GL_DEPTH_COMPONENT);
     
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screen_texture, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth2, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // ImageTexture imgtex("image.png");
-    // ImageTexture suzannetex("suzanne.png");
     ImageTexture albedotex1("rustediron2_basecolor.png");
     ImageTexture metallictex1("rustediron2_metallic.png");
     ImageTexture roughnesstex1("rustediron2_roughness.png");
@@ -258,16 +203,6 @@ int main()
     ImageTexture roughnesstex2("metalgrid3_roughness.png");
     ImageTexture normaltex2("metalgrid3_normal-ogl.png");
     Cubemap skybox("desertsky_up.tga", "desertsky_dn.tga", "desertsky_lf.tga", "desertsky_rt.tga", "desertsky_ft.tga", "desertsky_bk.tga");
-
-    // TODO: fix this vvvvvv
-    /* unsigned int model_loc = glGetUniformLocation(program, "model");
-    unsigned int viewproj_loc = glGetUniformLocation(program, "viewproj");
-    unsigned int light_loc = glGetUniformLocation(program, "light");
-    unsigned int lightSpace_loc = glGetUniformLocation(shadow_program, "lightSpace");
-    unsigned int depthTexture_loc = glGetUniformLocation(shadow_program, "depth_texture");
-    unsigned int imageTexture_loc = glGetUniformLocation(shadow_program, "image_texture");
-    unsigned int cameraPosition_loc = glGetUniformLocation(shadow_program, "camera_position");
-    unsigned int skyboxViewproj_loc = glGetUniformLocation(skybox_program, "viewproj"); */
 
     double lastCursorX, lastCursorY;
     glfwGetCursorPos(window, &lastCursorX, &lastCursorY);

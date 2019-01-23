@@ -2,6 +2,9 @@
 #define TEXTURE_HPP
 #include <string>
 
+void set_tex_params();
+unsigned int create_texture(unsigned int width, unsigned int height, int internal_format, int format);
+
 class ImageTexture
 {
 public:

@@ -4,6 +4,24 @@
 #include "GL/gl3w.h"
 #include <iostream>
 
+void set_tex_params()
+{
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+}
+
+unsigned int create_texture(unsigned int width, unsigned int height, int internal_format, int format)
+{
+    unsigned int id;
+    glGenTextures(1, &id);
+    glBindTexture(GL_TEXTURE_2D, id);
+    glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0, format, GL_FLOAT, NULL);
+    set_tex_params();
+    return id;
+}
+// IMAGE TEXTURE
 ImageTexture::ImageTexture(std::string path, bool srgb)
 {
     int x, y, n;
@@ -58,6 +76,7 @@ unsigned char* load(std::string path, int* x, int* y)
     return data;
 }
 
+// CUBEMAP
 
 Cubemap::Cubemap(std::string up, std::string down, std::string left, std::string right, std::string front, std::string back)
 {
