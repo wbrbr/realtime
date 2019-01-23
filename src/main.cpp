@@ -16,6 +16,8 @@
 #include "light.hpp"
 #include "texture.hpp"
 
+#define DBG_MODE 0
+
 GLFWwindow* initWindow()
 {
     if (!glfwInit())
@@ -52,7 +54,9 @@ GLFWwindow* initWindow()
 
 void dbgcallback( GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *msg, const void *data )
 {
-    std::cout << "debug call: " << msg << std::endl;
+    if (DBG_MODE) {
+        std::cout << "debug call: " << msg << std::endl;
+    }
 }
 
 std::optional<Mesh> loadMesh(std::string path)
@@ -255,7 +259,6 @@ int main()
     ImageTexture normaltex2("metalgrid3_normal-ogl.png");
     Cubemap skybox("desertsky_up.tga", "desertsky_dn.tga", "desertsky_lf.tga", "desertsky_rt.tga", "desertsky_ft.tga", "desertsky_bk.tga");
 
-    glClearColor(0.f, 0.f, 0.3f, 1.f);
     // TODO: fix this vvvvvv
     /* unsigned int model_loc = glGetUniformLocation(program, "model");
     unsigned int viewproj_loc = glGetUniformLocation(program, "viewproj");
@@ -318,20 +321,27 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);*/
 
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glEnable(GL_DEPTH_TEST);
-        glClearColor(0.f, 0.f, 0.0f, 1.f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
-
         // SKYBOX PROGRAM
-        /* glDepthMask(GL_FALSE);
+        /* glDepthMask(GL_FALSE); */
+        glClearColor(0.0, 0.0, 0.3, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDisable(GL_DEPTH_TEST);
         glUseProgram(skybox_program.id());
         glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix())))); // remove the translation
         glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.id());
         glBindVertexArray(cube.mesh.vao);
         glDrawArrays(GL_TRIANGLES, 0, 36);
-        glDepthMask(GL_TRUE); */
-        // glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+        /* glDepthMask(GL_TRUE); */
+        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
+
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glEnable(GL_DEPTH_TEST);
+        glClearColor(0.0, 0.0, 0.0, 1.0);
+        // glClearBufferfv(GL_COLOR, fbo, val);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
+
 
         /* // SHADOW PROGRAM
         glUseProgram(shadow_program.id());
@@ -397,8 +407,8 @@ int main()
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glDisable(GL_DEPTH_TEST);
-        glClearColor(0.f, 0.f, 0.3f, 1.f);
-        glClear(GL_COLOR_BUFFER_BIT); 
+		glClearColor(0.4f, 0.6f, 0.8f, 1.f);
+		glClear(GL_COLOR_BUFFER_BIT);
         
         // FINAL DRAW
         glUseProgram(final_program.id());
@@ -424,6 +434,14 @@ int main()
         glBindTexture(GL_TEXTURE_2D, position_tex);
 
         glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        /* glEnable(GL_DEPTH_TEST);
+        glUseProgram(skybox_program.id());
+        glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix())))); // remove the translation
+        glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.id());
+        glBindVertexArray(cube.mesh.vao);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, 0); */
 
         glfwSwapBuffers(window);
         glfwPollEvents();

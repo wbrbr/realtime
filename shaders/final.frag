@@ -71,6 +71,8 @@ void main()
     vec3 albedo = texture(albedotex, TexCoords).rgb;
     float roughness = texture(roughmettex, TexCoords).r;
     float metallic = texture(roughmettex, TexCoords).g;
+    float opacity = texture(roughmettex, TexCoords).b;
+	if (opacity < 0.5f) discard;
 
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
@@ -99,5 +101,5 @@ void main()
 
     vec3 color = L0 / (L0 + vec3(1.0));
 
-    FragColor = vec4(pow(color.r, 0.4545), pow(color.g, 0.4545), pow(color.b, 0.4545), 1.0);
+    FragColor = vec4(pow(color.r, 0.4545), pow(color.g, 0.4545), pow(color.b, 0.4545), opacity);
 }

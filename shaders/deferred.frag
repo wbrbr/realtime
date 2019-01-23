@@ -2,7 +2,7 @@
 
 layout (location = 0) out vec3 albedo;
 layout (location = 1) out vec3 normal;
-layout (location = 2) out vec2 roughness_metallic;
+layout (location = 2) out vec3 roughness_metallic;
 layout (location = 3) out vec3 position;
 
 in vec2 TexCoords;
@@ -33,4 +33,7 @@ void main()
     
     // === METALLIC ===
     roughness_metallic.g = texture(metallicMap, TexCoords).r;
+
+    // === OPAQUE ===
+    roughness_metallic.b = 1.0;
 }
