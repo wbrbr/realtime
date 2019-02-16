@@ -139,6 +139,8 @@ int main()
     Object cube;
     cube.mesh = loadMesh("../meshes/skybox.obj").value();
 
+    AnimatedMesh anim("../meshes/anim.dae");
+
     glEnable(GL_TEXTURE_2D);
     /* glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -161,6 +163,7 @@ int main()
     Shader pbrtex_program("shaders/pbr.vert", "shaders/pbrtex.frag");
     Shader deferred_program("shaders/deferred.vert", "shaders/deferred.frag");
     Shader final_program("shaders/final.vert", "shaders/final.frag");
+    Shader anim_program("shaders/anim.vert", "shaders/anim.frag");
 
     // === INIT FBO ===
     unsigned int fbo;
@@ -273,9 +276,7 @@ int main()
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glEnable(GL_DEPTH_TEST);
         glClearColor(0.0, 0.0, 0.0, 1.0);
-        // glClearBufferfv(GL_COLOR, fbo, val);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
 
         /* // SHADOW PROGRAM
@@ -313,7 +314,7 @@ int main()
         // glUniform1i(pbrtex_program.getLoc("depthTex"), 4);
 
         // suzanne
-        glActiveTexture(GL_TEXTURE0 + 0);
+        /* glActiveTexture(GL_TEXTURE0 + 0);
         glBindTexture(GL_TEXTURE_2D, albedotex1.id());
         glActiveTexture(GL_TEXTURE0 + 1);
         glBindTexture(GL_TEXTURE_2D, metallictex1.id());
@@ -325,7 +326,7 @@ int main()
         // glBindTexture(GL_TEXTURE_2D, depth_texture);
         glBindVertexArray(suzanne.mesh.vao);
         glUniformMatrix4fv(deferred_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
-        glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
+        glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices); */
 
         // plane
         glActiveTexture(GL_TEXTURE0 + 0);
@@ -339,6 +340,14 @@ int main()
         glBindTexture(GL_TEXTURE_2D, normaltex2.id());
         glUniformMatrix4fv(deferred_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
         glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
+
+        // anim
+        glUseProgram(anim_program.id());
+        glBindVertexArray(anim.getMesh().vao);
+        glUniformMatrix4fv(deferred_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
+        glUniformMatrix4fv(anim_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(glm::mat4()));
+        anim.setUniformBones(anim_program, "bones");
+        glDrawArrays(GL_TRIANGLES, 0, anim.getMesh().numVertices);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glDisable(GL_DEPTH_TEST);
