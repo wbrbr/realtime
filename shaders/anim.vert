@@ -12,7 +12,7 @@ uniform mat4 model;
 uniform mat4 viewproj;
 uniform vec3 lightPos;
 uniform vec3 camPos;
-uniform mat4 bones[MAX_BONES];
+uniform mat4 bones[32];
 
 out vec3 Position;
 out vec2 TexCoords;
@@ -28,6 +28,7 @@ void main()
     mat4 boneTransform = mat4(1.0);
     for (int i = 0; i < 4; i++)
     {
+        if (boneids[i] == -1) continue;
         boneTransform += weights[i] * bones[boneids[i]];
     }
     Normal = normal;

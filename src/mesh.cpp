@@ -1,7 +1,11 @@
 #include "mesh.hpp"
 #include "GL/gl3w.h"
 #include "glm/gtc/type_ptr.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtx/quaternion.hpp"
+#include "glm/gtx/string_cast.hpp"
 #include <iostream>
+#define ASSERT(A) if (!(A)) { std::cerr << "assert: "#A << std::endl; exit(1); }
 
 glm::mat4 aiMatrixToGlm(const aiMatrix4x4* from)
 {
@@ -25,20 +29,21 @@ AnimatedMesh::AnimatedMesh(std::string path)
 {
     m_nbBones = 0;
     Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
+    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs | aiProcess_ValidateDataStructure);
     if (!scene) {
         std::cerr << importer.GetErrorString() << std::endl;
         return;
     }
     aiMesh* m = scene->mMeshes[0];
-    unsigned int vao, vbo;
-    Mesh mesh;
-    mesh.numVertices = m->mNumVertices;
-    mesh.vao = vao;
-    mesh.vbo = vbo;
+    m_mesh.numVertices = m->mNumVertices;
 
-    m_vertexboneids = (int*)malloc(4 * sizeof(int) * mesh.numVertices);
-    m_vertexboneweights = (float*)malloc(4 * sizeof(float) * mesh.numVertices);
+    m_vertexboneids = (int*)malloc(4 * sizeof(int) * m_mesh.numVertices);
+    m_vertexboneweights = (float*)malloc(4 * sizeof(float) * m_mesh.numVertices);
+
+    for (unsigned int i = 0; i < 4 * m->mNumVertices; i++)
+    {
+        m_vertexboneweights[i] = 0.f;
+    }
 
     for (unsigned int i = 0; i < 4 * m->mNumVertices; i++)
     {
@@ -57,12 +62,13 @@ AnimatedMesh::AnimatedMesh(std::string path)
             addBoneToVertex((int)w.mVertexId, m_nbBones-1, w.mWeight);
         }
     }
+    initBoneTransforms(scene);
 
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, m->mNumVertices * 14 * sizeof(float), NULL, GL_STATIC_DRAW);
+    glGenVertexArrays(1, &m_mesh.vao);
+    glBindVertexArray(m_mesh.vao);
+    glGenBuffers(1, &m_mesh.vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, m_mesh.vbo);
+    glBufferData(GL_ARRAY_BUFFER, m->mNumVertices * (18 * sizeof(float) + 4 * sizeof(int)), NULL, GL_STATIC_DRAW);
     glBufferSubData(GL_ARRAY_BUFFER, 0, m->mNumVertices * 3 * sizeof(float), m->mVertices);
     glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 3 * sizeof(float), m->mNumVertices * 3 * sizeof(float), m->mNormals);
     if (m->HasTextureCoords(0)) {
@@ -104,14 +110,52 @@ AnimatedMesh::AnimatedMesh(std::string path)
     glEnableVertexAttribArray(5);
     glEnableVertexAttribArray(6);
 
-    m_mesh.vao = vao;
-    m_mesh.vbo = vbo;
-    m_mesh.numVertices = m->mNumVertices;
+    ASSERT(scene->mNumAnimations > 0);
+    aiAnimation* anim = scene->mAnimations[0];
+    m_animation.durationInTicks = anim->mDuration;
+    m_animation.ticksPerSec = anim->mTicksPerSecond;
+    for (unsigned int i = 0; i < anim->mNumChannels; i++)
+    {
+        aiNodeAnim* nodeanim = anim->mChannels[i];
+        std::string name(nodeanim->mNodeName.C_Str());
+        if (m_bonemapping.find(name) == m_bonemapping.end()) continue;
+        int boneid = m_bonemapping[name];
+        for (unsigned int j = 0; j < nodeanim->mNumPositionKeys; j++)
+        {
+            Key<glm::vec3> key;
+            key.tick = nodeanim->mPositionKeys[j].mTime;
+            aiVector3D v = nodeanim->mPositionKeys[j].mValue;
+            key.value = glm::vec3(v.x, v.y, v.z);
+            m_animation.bone_anims[boneid].positions.push_back(key);
+        }
+        for (unsigned int j = 0; j < nodeanim->mNumRotationKeys; j++)
+        {
+            Key<glm::quat> key;
+            key.tick = nodeanim->mRotationKeys[j].mTime;
+            aiQuaternion v = nodeanim->mRotationKeys[j].mValue;
+            key.value.x = v.x;
+            key.value.y = v.y;
+            key.value.z = v.z;
+            key.value.w = v.w;
+            m_animation.bone_anims[boneid].rotations.push_back(key);
+        }
+        for (unsigned int j = 0; j < nodeanim->mNumScalingKeys; j++)
+        {
+            Key<glm::vec3> key;
+            key.tick = nodeanim->mScalingKeys[j].mTime;
+            aiVector3D v = nodeanim->mScalingKeys[j].mValue;
+            key.value = glm::vec3(v.x, v.y, v.z);
+            m_animation.bone_anims[boneid].scalings.push_back(key);
+        }
+    }
+    printMappings();
+    printBone(0);
 }
 
 void AnimatedMesh::calcBoneTransform(aiNode* node, glm::mat4 parentTransform)
 {
     std::string name(node->mName.C_Str()); 
+    std::cout << name << std::endl;
 
     if (m_bonemapping.find(name) != m_bonemapping.end()) {
         int id = m_bonemapping[name];
@@ -121,40 +165,69 @@ void AnimatedMesh::calcBoneTransform(aiNode* node, glm::mat4 parentTransform)
 
         for (unsigned int i = 0; i < node->mNumChildren; i++)
         {
+            // std::cout << node->mNumChildren << std::endl;
+            aiNode* child = node->mChildren[i];
+            std::string childname(child->mName.C_Str());
+            if (m_bonemapping.find(childname) != m_bonemapping.end()) m_bones[id].children.push_back(m_bonemapping[childname]);
             calcBoneTransform(node->mChildren[i], trans);
         }
     } else {
         glm::mat4 trans = parentTransform * aiMatrixToGlm(&node->mTransformation);
         for (unsigned int i = 0; i < node->mNumChildren; i++)
         {
+            // std::cout << "fail" << std::endl;
             calcBoneTransform(node->mChildren[i], trans);
         }
     }
 }
 
-void AnimatedMesh::initBoneTransforms(aiScene* scene)
+void AnimatedMesh::printBone(int boneid)
+{
+    std::cout << boneid << ":";
+    for (auto it = m_bones[boneid].children.begin(); it != m_bones[boneid].children.end(); it++)
+    {
+        std::cout << *it << ",";
+    }
+    std::cout << std::endl;
+    for (auto it = m_bones[boneid].children.begin(); it != m_bones[boneid].children.end(); it++)
+    {
+        printBone(*it);
+    }
+}
+
+void AnimatedMesh::printMappings()
+{
+    for (auto it = m_bonemapping.begin(); it != m_bonemapping.end(); it++)
+    {
+        std::cout << it->first << ":" << it->second << std::endl;
+    }
+}
+
+void AnimatedMesh::initBoneTransforms(const aiScene* scene)
 {
     calcBoneTransform(scene->mRootNode, glm::mat4());
 }
 
 void AnimatedMesh::addBoneToVertex(int vertexid, int boneid, float w)
 {
-    assert(vertexid < m_mesh.numVertices);
-    assert(boneid < MAX_BONES);
+    ASSERT(vertexid < (int)m_mesh.numVertices);
+    ASSERT(boneid < MAX_BONES);
     for (int i = 0; i < 4; i++)
     {
         if (m_vertexboneids[4*vertexid+i] == -1) {
             m_vertexboneids[4*vertexid+i] = boneid;
             m_vertexboneweights[4*vertexid+i] = w;
+            return;
         }
     }
 
-    assert(0);
+    std::cerr << "AnimatedMesh::addBoneToVertex : vertex not found" << std::endl;
+    ASSERT(0);
 }
 
 void AnimatedMesh::addBone(Bone b)
 {
-    assert(m_nbBones < MAX_BONES);
+    ASSERT(m_nbBones < MAX_BONES);
     m_bones[m_nbBones] = b;
     m_nbBones++;
 }
@@ -166,9 +239,104 @@ Mesh AnimatedMesh::getMesh()
 
 void AnimatedMesh::setUniformBones(Shader& shader, std::string uniformName)
 {
+    /* std::cout << glm::to_string(m_bones[0].localMatrix) << std::endl; */
     for (int i = 0; i < m_nbBones; i++)
     {
         int loc = shader.getLoc(uniformName + "[" + std::to_string(i) + "]");
         glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(m_bones[i].worldMatrix));
+    }
+    for (int i = m_nbBones; i < 32; i++)
+    {
+        glm::mat4 mat;
+        int loc = shader.getLoc(uniformName + "[" + std::to_string(i) + "]");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(mat));
+    }
+}
+
+void AnimatedMesh::update(double time)
+{
+    double timeInTicks = fmod(time / m_animation.ticksPerSec, m_animation.durationInTicks);;
+    updateTransforms(0, timeInTicks, glm::mat4());
+    // std::cout << m_bones[0].children.size() << std::endl;
+}
+
+void AnimatedMesh::interpolateFrames(int boneid, double tick, glm::vec3* position, glm::quat* rot, glm::vec3* scale)
+{
+    *position = interpolatePosition(boneid, tick);
+    *rot = interpolateRotation(boneid, tick);
+    *scale = interpolateScale(boneid, tick);
+}
+
+glm::vec3 AnimatedMesh::interpolatePosition(int boneid, double tick)
+{
+    unsigned int i = 0;
+    /* NOTE: anim.bone_anims[boneid].positions doit être trié par ordre chronologique */
+    while (i < m_animation.bone_anims[boneid].positions.size() - 1 && tick < m_animation.bone_anims[boneid].positions[i].tick) {
+        ASSERT(m_animation.bone_anims[boneid].positions[i].tick < m_animation.bone_anims[boneid].positions[i+1].tick);
+        i++;
+    }
+
+    Key<glm::vec3> prev = m_animation.bone_anims[boneid].positions[i];
+    if (i == m_animation.bone_anims[boneid].positions.size()) return prev.value;
+
+    Key<glm::vec3> next = m_animation.bone_anims[boneid].positions[i+1];
+
+    float factor = (tick - prev.tick) / (next.tick - prev.tick);
+    return factor * next.value + (1.f - factor) * prev.value; 
+}
+
+glm::quat AnimatedMesh::interpolateRotation(int boneid, double tick)
+{
+    unsigned int i = 0;
+    while (i < m_animation.bone_anims[boneid].rotations.size() - 1 && tick >= m_animation.bone_anims[boneid].rotations[i+1].tick) {
+        ASSERT(m_animation.bone_anims[boneid].rotations[i].tick < m_animation.bone_anims[boneid].rotations[i+1].tick);
+        i++;
+    }
+
+    Key<glm::quat> prev = m_animation.bone_anims[boneid].rotations[i];
+    if (i == m_animation.bone_anims[boneid].rotations.size()) return prev.value;
+    std::cout << boneid << ":" << glm::to_string(prev.value) << std::endl;
+
+    Key<glm::quat> next = m_animation.bone_anims[boneid].rotations[i+1];
+
+    float factor = (tick - prev.tick) / (next.tick - prev.tick);
+    return glm::slerp(prev.value, next.value, (float)factor);
+}
+
+glm::vec3 AnimatedMesh::interpolateScale(int boneid, double tick)
+{
+    unsigned int i = 0;
+    while (i < m_animation.bone_anims[boneid].scalings.size() - 1 && tick < m_animation.bone_anims[boneid].scalings[i].tick) {
+        ASSERT(m_animation.bone_anims[boneid].scalings[i].tick < m_animation.bone_anims[boneid].scalings[i+1].tick);
+        i++;
+    }
+
+    Key<glm::vec3> prev = m_animation.bone_anims[boneid].scalings[i];
+    if (i == m_animation.bone_anims[boneid].scalings.size()) return prev.value;
+
+    Key<glm::vec3> next = m_animation.bone_anims[boneid].scalings[i+1];
+
+    float factor = (tick - prev.tick) / (next.tick - prev.tick);
+    return factor * next.value + (1.f - factor) * prev.value;
+}
+
+void AnimatedMesh::updateTransforms(int boneid, double tick, const glm::mat4& parentMatrix)
+{
+    // std::cout << "update:" << boneid << std::endl;
+    glm::vec3 position, scale;
+    glm::quat rot;
+    interpolateFrames(boneid, tick, &position, &rot, &scale);
+    glm::mat4 m;
+    glm::scale(m, scale);
+    m = glm::toMat4(rot) * m;
+    glm::translate(m, position);
+    m_bones[boneid].localMatrix = m;
+
+    glm::mat4 trans = parentMatrix * m;
+    m_bones[boneid].worldMatrix = trans * m_bones[boneid].offsetMatrix;
+
+    for (auto it : m_bones[boneid].children)
+    {
+        updateTransforms(it, tick, trans);
     }
 }

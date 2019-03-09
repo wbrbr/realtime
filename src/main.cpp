@@ -235,6 +235,7 @@ int main()
         camera.transform.rotation.x -= (currentCursorY - lastCursorY) * 0.001f;
         lastCursorX = currentCursorX;
         lastCursorY = currentCursorY;
+        anim.update(glfwGetTime());
 
         /* // DEPTH PROGRAM
         glUseProgram(depth_program.id());
