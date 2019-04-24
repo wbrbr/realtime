@@ -16,7 +16,7 @@
 #include "light.hpp"
 #include "texture.hpp"
 
-#define DBG_MODE 0
+#define DBG_MODE 1
 
 GLFWwindow* initWindow()
 {
@@ -139,7 +139,7 @@ int main()
     Object cube;
     cube.mesh = loadMesh("../meshes/skybox.obj").value();
 
-    glEnable(GL_TEXTURE_2D);
+    /* glEnable(GL_TEXTURE_CUBE_MAP); */
     /* glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     unsigned int texture;
@@ -257,21 +257,23 @@ int main()
         glBindFramebuffer(GL_FRAMEBUFFER, 0);*/
 
         // SKYBOX PROGRAM
-        /* glDepthMask(GL_FALSE); */
-        glClearColor(0.0, 0.0, 0.3, 1.0);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDisable(GL_DEPTH_TEST);
+        /* glClearColor(0.0, 0.0, 0.3, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT); */
+        /* glDisable(GL_DEPTH_TEST); */
+        glActiveTexture(GL_TEXTURE0 + 0);
+
+        glDepthMask(GL_FALSE);
         glUseProgram(skybox_program.id());
-        glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix())))); // remove the translation
-        glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.id());
         glBindVertexArray(cube.mesh.vao);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.id());
+        glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix())))); // remove the translation
         glDrawArrays(GL_TRIANGLES, 0, 36);
-        /* glDepthMask(GL_TRUE); */
+        glDepthMask(GL_TRUE);
         glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
 
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glEnable(GL_DEPTH_TEST);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glClearColor(0.0, 0.0, 0.0, 1.0);
         // glClearBufferfv(GL_COLOR, fbo, val);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -342,8 +344,8 @@ int main()
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glDisable(GL_DEPTH_TEST);
-		glClearColor(0.4f, 0.6f, 0.8f, 1.f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		/* glClearColor(0.4f, 0.6f, 0.8f, 1.f);
+		glClear(GL_COLOR_BUFFER_BIT); */
         
         // FINAL DRAW
         glUseProgram(final_program.id());
