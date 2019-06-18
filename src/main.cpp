@@ -157,6 +157,7 @@ int main()
     // unsigned int ssao_program = loadShaderProgram("shaders/base.vert", "shaders/ssao.frag");
     // Shader shadow_program("shaders/base.vert", "shaders/shadow.frag");
     Shader skybox_program("shaders/skybox.vert", "shaders/skybox.frag");
+    Shader env_program("shaders/skybox.vert", "shaders/env.frag");
     // Shader pbr_program("shaders/base.vert", "shaders/pbr.frag");
     Shader pbrtex_program("shaders/pbr.vert", "shaders/pbrtex.frag");
     Shader deferred_program("shaders/deferred.vert", "shaders/deferred.frag");
@@ -203,6 +204,8 @@ int main()
     ImageTexture roughnesstex2("metalgrid3_roughness.png");
     ImageTexture normaltex2("metalgrid3_normal-ogl.png");
     Cubemap skybox("desertsky_up.tga", "desertsky_dn.tga", "desertsky_lf.tga", "desertsky_rt.tga", "desertsky_ft.tga", "desertsky_bk.tga");
+
+    HDRTexture env("circus_arena_4k.hdr");
 
     double lastCursorX, lastCursorY;
     glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
@@ -263,13 +266,19 @@ int main()
         glActiveTexture(GL_TEXTURE0 + 0);
 
         glDepthMask(GL_FALSE);
-        glUseProgram(skybox_program.id());
+        /* glUseProgram(skybox_program.id());
         glBindVertexArray(cube.mesh.vao);
         glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.id());
         glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix())))); // remove the translation
         glDrawArrays(GL_TRIANGLES, 0, 36);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, 0); */
+
+        glUseProgram(env_program.id());
+        glBindVertexArray(cube.mesh.vao);
+        glBindTexture(GL_TEXTURE_2D, env.id());
+        glUniformMatrix4fv(env_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix())))); // remove the translation
+        glDrawArrays(GL_TRIANGLES, 0, 36);
         glDepthMask(GL_TRUE);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
 
         glEnable(GL_DEPTH_TEST);

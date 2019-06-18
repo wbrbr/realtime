@@ -1,6 +1,7 @@
 #ifndef TEXTURE_HPP
 #define TEXTURE_HPP
 #include <string>
+#include "GL/gl3w.h"
 
 void set_tex_params();
 unsigned int create_texture(unsigned int width, unsigned int height, int internal_format, int format);
@@ -8,14 +9,21 @@ unsigned int create_texture(unsigned int width, unsigned int height, int interna
 class ImageTexture
 {
 public:
-    ImageTexture(std::string path, bool srgb = false);
-    ~ImageTexture();
+    ImageTexture() {};
+    ImageTexture(std::string path);
+    virtual ~ImageTexture();
     unsigned int id();
     unsigned int width();
     unsigned int height();
 
-private:
+protected:
     unsigned int m_id, m_width, m_height, m_channels;
+};
+
+class HDRTexture: public ImageTexture
+{
+public:
+    HDRTexture(std::string path);
 };
 
 class Cubemap
