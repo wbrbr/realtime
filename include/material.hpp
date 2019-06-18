@@ -5,6 +5,9 @@
 class TextureMaterial
 {
 public:
-    ImageTexture* albedoMap, metallicMap, roughnessMap, normalMap;
+	ImageTexture* albedoMap;
+	ImageTexture* metallicMap;
+	ImageTexture* roughnessMap;
+	ImageTexture* normalMap;
 };
 #endif

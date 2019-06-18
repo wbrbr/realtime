@@ -1,9 +1,9 @@
-#include "GL/gl3w.h"
-#include <GLFW/glfw3.h>
+#include "../include/GL/gl3w.h"
+#include "GLFW/glfw3.h"
 #include <iostream>
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
+#include "assimp/Importer.hpp"
+#include "assimp/scene.h"
+#include "assimp/postprocess.h"
 #include "glm/vec3.hpp"
 #include "glm/mat4x4.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -15,6 +15,7 @@
 #include "object.hpp"
 #include "light.hpp"
 #include "texture.hpp"
+#include "renderer.hpp"
 
 #define DBG_MODE 1
 
@@ -52,7 +53,7 @@ GLFWwindow* initWindow()
     return window;
 }
 
-void dbgcallback(__attribute__((unused)) GLenum source, __attribute__((unused)) GLenum type, __attribute__((unused)) GLuint id, __attribute__((unused)) GLenum severity, __attribute__((unused)) GLsizei length, __attribute__((unused)) const GLchar *msg, __attribute__((unused)) const void *data)
+void dbgcallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *msg, const void *data)
 {
     if (DBG_MODE) {
         std::cout << "debug call: " << msg << std::endl;
@@ -125,19 +126,19 @@ int main()
         return 1;
     }
 
-    glDebugMessageCallback(dbgcallback, NULL);
+    // glDebugMessageCallback(dbgcallback, NULL);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
     Object suzanne;
-    suzanne.mesh = loadMesh("../meshes/suzanne2.obj").value();
+    suzanne.mesh = loadMesh("res/suzanne2.obj").value();
 
     Object plane;
-    plane.mesh = loadMesh("../meshes/plane.obj").value();
+    plane.mesh = loadMesh("res/plane.obj").value();
     plane.transform.position.y -= 0.5f;
 
-    Object cube;
-    cube.mesh = loadMesh("../meshes/skybox.obj").value();
+    /* Object cube;
+    cube.mesh = loadMesh("../meshes/skybox.obj").value(); */
 
     /* glEnable(GL_TEXTURE_CUBE_MAP); */
     /* glEnable(GL_BLEND);
@@ -151,58 +152,30 @@ int main()
     Camera camera;
     camera.transform.position.z += 3.f;
 
+    ImageTexture albedotex1("res/rustediron2_basecolor.png");
+    ImageTexture metallictex1("res/rustediron2_metallic.png");
+    ImageTexture roughnesstex1("res/rustediron2_roughness.png");
+    ImageTexture normaltex1("res/rustediron2_normal.png");
+    ImageTexture albedotex2("res/metalgrid3_basecolor.png");
+    ImageTexture metallictex2("res/metalgrid3_metallic.png");
+    ImageTexture roughnesstex2("res/metalgrid3_roughness.png");
+    ImageTexture normaltex2("res/metalgrid3_normal-ogl.png");
 
-    // Shader program("shaders/base.vert", "shaders/base.frag");
-    Shader depth_program("shaders/base.vert", "shaders/depth.frag");
-    // unsigned int ssao_program = loadShaderProgram("shaders/base.vert", "shaders/ssao.frag");
-    // Shader shadow_program("shaders/base.vert", "shaders/shadow.frag");
-    Shader skybox_program("shaders/skybox.vert", "shaders/skybox.frag");
-    // Shader pbr_program("shaders/base.vert", "shaders/pbr.frag");
-    Shader pbrtex_program("shaders/pbr.vert", "shaders/pbrtex.frag");
-    Shader deferred_program("shaders/deferred.vert", "shaders/deferred.frag");
-    Shader final_program("shaders/final.vert", "shaders/final.frag");
+	suzanne.material.albedoMap = &albedotex1;
+	suzanne.material.metallicMap = &metallictex1;
+	suzanne.material.roughnessMap = &roughnesstex1;
+	suzanne.material.normalMap = &normaltex1;
+	plane.material.albedoMap = &albedotex2;
+	plane.material.metallicMap = &metallictex2;
+	plane.material.roughnessMap = &roughnesstex2;
+	plane.material.normalMap = &normaltex2;
 
-    // === INIT FBO ===
-    unsigned int fbo;
-    glGenFramebuffers(1, &fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	Renderer renderer;
+	std::vector<Object> objects;
+	objects.push_back(suzanne);
+	objects.push_back(plane);
 
-    unsigned int albedo = create_texture(800, 450, GL_RGB32F, GL_RGB);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, albedo, 0);
-    unsigned int normal_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normal_tex, 0);
-    unsigned int rough_met_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, rough_met_tex, 0);
-    unsigned int position_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, position_tex, 0);
-
-    unsigned int depth_texture = create_texture(800, 450, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture, 0);
-
-    unsigned int attachments[4] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
-    glDrawBuffers(4, attachments);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    unsigned int fbo2;
-    glGenFramebuffers(1, &fbo2);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
-
-    unsigned int screen_texture = create_texture(800, 450, GL_RGBA16F, GL_RGBA);
-    unsigned int depth2 = create_texture(800, 450, GL_DEPTH_COMPONENT24, GL_DEPTH_COMPONENT);
-    
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screen_texture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth2, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    ImageTexture albedotex1("rustediron2_basecolor.png");
-    ImageTexture metallictex1("rustediron2_metallic.png");
-    ImageTexture roughnesstex1("rustediron2_roughness.png");
-    ImageTexture normaltex1("rustediron2_normal.png");
-    ImageTexture albedotex2("metalgrid3_basecolor.png");
-    ImageTexture metallictex2("metalgrid3_metallic.png");
-    ImageTexture roughnesstex2("metalgrid3_roughness.png");
-    ImageTexture normaltex2("metalgrid3_normal-ogl.png");
-    Cubemap skybox("desertsky_up.tga", "desertsky_dn.tga", "desertsky_lf.tga", "desertsky_rt.tga", "desertsky_ft.tga", "desertsky_bk.tga");
+    // Cubemap skybox("desertsky_up.tga", "desertsky_dn.tga", "desertsky_lf.tga", "desertsky_rt.tga", "desertsky_ft.tga", "desertsky_bk.tga");
 
     double lastCursorX, lastCursorY;
     glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
@@ -233,144 +206,8 @@ int main()
         lastCursorX = currentCursorX;
         lastCursorY = currentCursorY;
 
-        /* // DEPTH PROGRAM
-        glUseProgram(depth_program.id());
-        glm::mat4 lightProjection = glm::ortho(-1.f, 1.f, -1.f, 1.f, 0.1f, 5.f);
-        glm::mat4 lightView = glm::lookAt(glm::vec3(0.f, 1.f, 1.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
-        glm::mat4 lightviewproj = lightProjection * lightView;
-        glUniformMatrix4fv(depth_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(lightviewproj));
-        // glUniform3f(depth_program.getLoc("light"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
-
-        // depth texture
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glClear(GL_DEPTH_BUFFER_BIT);
-
-        // suzanne
-        glBindVertexArray(suzanne.mesh.vao);
-        glUniformMatrix4fv(depth_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
-        glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
-
-        // plane
-        glBindVertexArray(plane.mesh.vao);
-        glUniformMatrix4fv(depth_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
-        glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);*/
-
-        // SKYBOX PROGRAM
-        /* glClearColor(0.0, 0.0, 0.3, 1.0);
-        glClear(GL_COLOR_BUFFER_BIT); */
-        /* glDisable(GL_DEPTH_TEST); */
-        glActiveTexture(GL_TEXTURE0 + 0);
-
-        glDepthMask(GL_FALSE);
-        glUseProgram(skybox_program.id());
-        glBindVertexArray(cube.mesh.vao);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.id());
-        glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix())))); // remove the translation
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glDepthMask(GL_TRUE);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-
-
-        glEnable(GL_DEPTH_TEST);
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glClearColor(0.0, 0.0, 0.0, 1.0);
-        // glClearBufferfv(GL_COLOR, fbo, val);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
-
-
-        /* // SHADOW PROGRAM
-        glUseProgram(shadow_program.id());
-        glUniformMatrix4fv(shadow_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
-        glUniformMatrix4fv(shadow_program.getLoc("lightSpace"), 1, GL_FALSE, glm::value_ptr(lightviewproj));
-        glUniform3f(shadow_program.getLoc("camera_position"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
-        glUniform3f(shadow_program.getLoc("light"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
-        glUniform1i(shadow_program.getLoc("depth_texture"), 0);
-        glUniform1i(shadow_program.getLoc("skybox"), 1);
-        glUniform1i(shadow_program.getLoc("image_texture"), 2);
-
-        glActiveTexture(GL_TEXTURE0 + 0);
-        glBindTexture(GL_TEXTURE_2D, depth_texture);
-
-        glActiveTexture(GL_TEXTURE0 + 1);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.id());
-
-        glActiveTexture(GL_TEXTURE0 + 2); */
-
-        // PBR PROGRAM
-        /* glUseProgram(pbr_program.id());
-        glUniformMatrix4fv(pbr_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
-        glUniform3f(pbr_program.getLoc("camPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
-        glUniform3f(pbr_program.getLoc("lightPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z); */
-
-        // PBR TEX PROGRAM
-        // glUseProgram(pbrtex_program.id());
-        glUseProgram(deferred_program.id());
-        glUniformMatrix4fv(deferred_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
-        glUniform1i(deferred_program.getLoc("albedoMap"), 0);
-        glUniform1i(deferred_program.getLoc("metallicMap"), 1);
-        glUniform1i(deferred_program.getLoc("roughnessMap"), 2);
-        glUniform1i(deferred_program.getLoc("normalMap"), 3);
-        // glUniform1i(pbrtex_program.getLoc("depthTex"), 4);
-
-        // suzanne
-        glActiveTexture(GL_TEXTURE0 + 0);
-        glBindTexture(GL_TEXTURE_2D, albedotex1.id());
-        glActiveTexture(GL_TEXTURE0 + 1);
-        glBindTexture(GL_TEXTURE_2D, metallictex1.id());
-        glActiveTexture(GL_TEXTURE0 + 2);
-        glBindTexture(GL_TEXTURE_2D, roughnesstex1.id());
-        glActiveTexture(GL_TEXTURE0 + 3);
-        glBindTexture(GL_TEXTURE_2D, normaltex1.id());
-        // glActiveTexture(GL_TEXTURE0 + 4);
-        // glBindTexture(GL_TEXTURE_2D, depth_texture);
-        glBindVertexArray(suzanne.mesh.vao);
-        glUniformMatrix4fv(deferred_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(suzanne.transform.getMatrix()));
-        glDrawArrays(GL_TRIANGLES, 0, suzanne.mesh.numVertices);
-
-        // plane
-        glActiveTexture(GL_TEXTURE0 + 0);
-        glBindTexture(GL_TEXTURE_2D, albedotex2.id());
-        glActiveTexture(GL_TEXTURE0 + 1);
-        glBindTexture(GL_TEXTURE_2D, metallictex2.id());
-        glActiveTexture(GL_TEXTURE0 + 2);
-        glBindTexture(GL_TEXTURE_2D, roughnesstex2.id());
-        glBindVertexArray(plane.mesh.vao);
-        glActiveTexture(GL_TEXTURE0 + 3);
-        glBindTexture(GL_TEXTURE_2D, normaltex2.id());
-        glUniformMatrix4fv(deferred_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(plane.transform.getMatrix()));
-        glDrawArrays(GL_TRIANGLES, 0, plane.mesh.numVertices);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glDisable(GL_DEPTH_TEST);
-		/* glClearColor(0.4f, 0.6f, 0.8f, 1.f);
-		glClear(GL_COLOR_BUFFER_BIT); */
-        
         // FINAL DRAW
-        glUseProgram(final_program.id());
-        glUniform3f(final_program.getLoc("lightPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
-        glUniform3f(final_program.getLoc("camPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
-        glUniform1i(final_program.getLoc("albedotex"), 0);
-        glUniform1i(final_program.getLoc("normaltex"), 1);
-        glUniform1i(final_program.getLoc("depthtex"), 2);
-        glUniform1i(final_program.getLoc("roughmettex"), 3);
-        glUniform1i(final_program.getLoc("positiontex"), 4);
-        glUniform1f(final_program.getLoc("zNear"), 0.1f);
-        glUniform1f(final_program.getLoc("zFar"), 5.f);
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, albedo);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, normal_tex);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, depth_texture);
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, rough_met_tex);
-        glActiveTexture(GL_TEXTURE4);
-        glBindTexture(GL_TEXTURE_2D, position_tex);
-
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+		renderer.render(objects, camera);
 
         /* glEnable(GL_DEPTH_TEST);
         glUseProgram(skybox_program.id());
