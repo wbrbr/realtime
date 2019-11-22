@@ -9,7 +9,10 @@ class Renderer {
 private:
 	Shader deferred_program;
 	Shader final_program;
-	unsigned int fbo, albedo, normal_tex, rough_met_tex, position_tex, depth_texture;
+	Shader ssao_program;
+	unsigned int fbo, albedo, normal_tex, rough_met_tex, position_tex, depth_texture, ssao_tex, noise_tex;
+	unsigned int ssao_fbo;
+	std::vector<glm::vec3> ssao_samples;
 
 public:
 	Renderer();

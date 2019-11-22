@@ -8,6 +8,7 @@
 #include "glm/mat4x4.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
+#include "glm/geometric.hpp"
 #include <optional>
 #include "shader.hpp"
 #include "camera.hpp"
@@ -97,8 +98,25 @@ std::optional<Mesh> loadMesh(std::string path)
         glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 6 * sizeof(float), m->mNumVertices * 2 * sizeof(float), zero);
         free(zero);
     }
-    glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 8 * sizeof(float), m->mNumVertices * 3 * sizeof(float), m->mTangents);
-    glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 11 * sizeof(float), m->mNumVertices * 3 * sizeof(float), m->mBitangents);
+    if (m->HasTangentsAndBitangents()) {
+        glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 8 * sizeof(float), m->mNumVertices * 3 * sizeof(float), m->mTangents);
+        glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 11 * sizeof(float), m->mNumVertices * 3 * sizeof(float), m->mBitangents);
+    } else {
+        std::vector<glm::vec3> tangents;
+        std::vector<glm::vec3> bitangents;
+        for (unsigned int i = 0; i < m->mNumVertices; i++)
+        {
+            glm::vec3 n(m->mNormals[i].x, m->mNormals[i].y, m->mNormals[i].z);
+            glm::vec3 random_vector = glm::vec3((float)rand()/(float)RAND_MAX, (float)rand()/(float)RAND_MAX, (float)rand()/(float)RAND_MAX);
+            glm::vec3 tangent = glm::normalize(random_vector - n * dot(n, random_vector));
+            glm::vec3 bitangent = glm::cross(n, tangent);
+            tangents.push_back(tangent);
+            bitangents.push_back(bitangent);
+        }
+        glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 8 * sizeof(float), m->mNumVertices * 3 * sizeof(float), tangents.data());
+        glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 11 * sizeof(float), m->mNumVertices * 3 * sizeof(float), bitangents.data());
+    }
+    
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(m->mNumVertices * 3 * sizeof(float)));
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(m->mNumVertices * 6 * sizeof(float)));
@@ -131,11 +149,15 @@ int main()
     glEnable(GL_CULL_FACE);
 
     Object suzanne;
-    suzanne.mesh = loadMesh("res/suzanne2.obj").value();
+    suzanne.mesh = loadMesh("../meshes/suzanne.obj").value();
 
     Object plane;
-    plane.mesh = loadMesh("res/plane.obj").value();
+    plane.mesh = loadMesh("../meshes/plane.obj").value();
     plane.transform.position.y -= 0.5f;
+
+    Object cube;
+    cube.mesh = loadMesh("../meshes/cube.obj").value();
+    cube.transform.scale = glm::vec3(.3f, .3f, .3f);
 
     /* Object cube;
     cube.mesh = loadMesh("../meshes/skybox.obj").value(); */
@@ -152,14 +174,14 @@ int main()
     Camera camera;
     camera.transform.position.z += 3.f;
 
-    ImageTexture albedotex1("res/rustediron2_basecolor.png");
-    ImageTexture metallictex1("res/rustediron2_metallic.png");
-    ImageTexture roughnesstex1("res/rustediron2_roughness.png");
-    ImageTexture normaltex1("res/rustediron2_normal.png");
-    ImageTexture albedotex2("res/metalgrid3_basecolor.png");
-    ImageTexture metallictex2("res/metalgrid3_metallic.png");
-    ImageTexture roughnesstex2("res/metalgrid3_roughness.png");
-    ImageTexture normaltex2("res/metalgrid3_normal-ogl.png");
+    ImageTexture albedotex1("../res/rustediron2_basecolor.png");
+    ImageTexture metallictex1("../res/rustediron2_metallic.png");
+    ImageTexture roughnesstex1("../res/rustediron2_roughness.png");
+    ImageTexture normaltex1("../res/rustediron2_normal.png");
+    ImageTexture albedotex2("../res/metalgrid3_basecolor.png");
+    ImageTexture metallictex2("../res/metalgrid3_metallic.png");
+    ImageTexture roughnesstex2("../res/metalgrid3_roughness.png");
+    ImageTexture normaltex2("../res/metalgrid3_normal-ogl.png");
 
 	suzanne.material.albedoMap = &albedotex1;
 	suzanne.material.metallicMap = &metallictex1;
@@ -169,10 +191,16 @@ int main()
 	plane.material.metallicMap = &metallictex2;
 	plane.material.roughnessMap = &roughnesstex2;
 	plane.material.normalMap = &normaltex2;
+    cube.material.albedoMap = &albedotex1;
+    cube.material.metallicMap = &metallictex1;
+    cube.material.roughnessMap = &roughnesstex1;
+    cube.material.normalMap = &normaltex1;
+    
 
 	Renderer renderer;
 	std::vector<Object> objects;
-	objects.push_back(suzanne);
+	// objects.push_back(suzanne);
+    objects.push_back(cube);
 	objects.push_back(plane);
 
     // Cubemap skybox("desertsky_up.tga", "desertsky_dn.tga", "desertsky_lf.tga", "desertsky_rt.tga", "desertsky_ft.tga", "desertsky_bk.tga");

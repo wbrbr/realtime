@@ -1,22 +1,44 @@
 #version 330 core
+out vec4 FragColor;
+in vec2 TexCoords;
 
-in vec3 Position;
-in vec3 Normal;
+uniform sampler2D positiontex;
+uniform sampler2D normaltex;
+uniform sampler2D noisetex;
 
-out vec4 outColor;
+uniform vec3 samples[64];
 
-uniform vec3 light;
-uniform sampler2D depth_texture;
+uniform mat4 worldtoview;
+uniform mat4 projection; // view space to clip space
 
 void main()
 {
-    /* vec3 obj_to_light = normalize(light - Position);
-    float intensity = dot(Normal, obj_to_light);
-    vec4 color = vec4(intensity, intensity, intensity, 1.f); */
-    vec2 texcoords;
-    texcoords.x = gl_FragCoord.x / 800.0;
-    texcoords.y = gl_FragCoord.y / 450.0;
-    float depth = texture(depth_texture, texcoords).r;
-    vec3 color = vec3(depth, depth, depth);
-    outColor = vec4(pow(color.r, 0.4545), pow(color.g, 0.4545), pow(color.b, 0.4545), 1.0);
+    vec3 randomvec = texture(noisetex, TexCoords * vec2(500., 300.)).rgb;
+    vec3 N = normalize(mat3(worldtoview) * texture(normaltex, TexCoords).rgb); // by casting mat4 to mat3 we get rid of the translation
+    vec3 position = vec3(worldtoview * texture(positiontex, TexCoords).rgba);
+
+    vec3 tangent = normalize(randomvec - N * dot(randomvec, N));
+    vec3 bitangent = cross(N, tangent);
+    mat3 TBN = mat3(tangent, bitangent, N); // tangent space to view space matrix
+
+
+    float occlusion = 0.0;
+    const float radius = .2;
+    const float bias = .025;
+    for (int i = 0; i < 64; i++)
+    {
+        vec3 sample = TBN * samples[i]; // transform to view space
+        sample = position + sample * radius; // offset fragment position with this sample
+
+        // we want the screen position of this sample
+        vec4 coords = vec4(sample, 1.);
+        coords = projection * coords; // we project the sample to the screen (clip space)
+        coords.xyz /= coords.w; // perspective divide (-> normalized device coordinates)
+        coords.xyz = coords.xyz * .5 + .5; // [-1, 1] -> [0, 1]
+        float sampleDepth = (worldtoview * texture(positiontex, coords.xy)).z;
+        occlusion += (sampleDepth >= sample.z ? 1.0 : 0.0);  
+    }
+
+    occlusion = 1.0 - (occlusion / 64);
+    FragColor = vec4(occlusion, occlusion, occlusion, 1.);
 }

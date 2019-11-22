@@ -7,6 +7,7 @@ uniform sampler2D normaltex;
 uniform sampler2D depthtex;
 uniform sampler2D roughmettex;
 uniform sampler2D positiontex;
+uniform sampler2D ssaotex;
 uniform float zFar;
 uniform float zNear;
 
@@ -72,6 +73,10 @@ void main()
     float roughness = texture(roughmettex, TexCoords).r;
     float metallic = texture(roughmettex, TexCoords).g;
     float opacity = texture(roughmettex, TexCoords).b;
+    float ssao = texture(ssaotex, TexCoords).r;
+
+    FragColor = vec4(texture(ssaotex, TexCoords).rgb, 1.);
+    return;
 	if (opacity < 0.5f) discard;
 
     vec3 F0 = vec3(0.04);
@@ -97,9 +102,11 @@ void main()
     kD *= 1.0 - metallic;
 
     float NdotL = max(dot(N, L), 0.0);
-    L0 += (kD * albedo / PI + specular) * radiance * NdotL; 
+    L0 += (kD * albedo / PI + specular) * radiance * NdotL;
+    vec3 ambient = vec3(.05) * albedo * ssao;
 
-    vec3 color = L0 / (L0 + vec3(1.0));
+    vec3 color = L0 + ambient;
+    color = color / (color + vec3(1.));
 
     FragColor = vec4(pow(color.r, 0.4545), pow(color.g, 0.4545), pow(color.b, 0.4545), opacity);
 }
