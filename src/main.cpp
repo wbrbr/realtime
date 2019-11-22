@@ -1,4 +1,4 @@
-#include "../include/GL/gl3w.h"
+#include "GL/gl3w.h"
 #include "GLFW/glfw3.h"
 #include <iostream>
 #include "assimp/Importer.hpp"
@@ -10,6 +10,9 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/geometric.hpp"
 #include <optional>
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 #include "shader.hpp"
 #include "camera.hpp"
 #include "mesh.hpp"
@@ -38,7 +41,7 @@ GLFWwindow* initWindow()
         glfwTerminate();
         return nullptr;
     }
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwMakeContextCurrent(window);
 
     if (gl3wInit())
@@ -51,6 +54,7 @@ GLFWwindow* initWindow()
         std::cout << "OpenGL 3.3 not supported" << std::endl;
         return nullptr;
     }
+    
     return window;
 }
 
@@ -144,6 +148,14 @@ int main()
         return 1;
     }
 
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    const char* glsl_version = "#version 330";
+    ImGui_ImplOpenGL3_Init(glsl_version);
+    ImGuiIO& imio = ImGui::GetIO();
+
     // glDebugMessageCallback(dbgcallback, NULL);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -209,30 +221,38 @@ int main()
     glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
     while (!glfwWindowShouldClose(window))
     {
-        if (glfwGetKey(window, GLFW_KEY_A)) {
-            camera.transform.translateRelative(glm::vec3(-0.01f, 0.f, 0.f));
+        glfwPollEvents();
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        if (!imio.WantCaptureKeyboard) {
+            if (glfwGetKey(window, GLFW_KEY_A)) {
+                camera.transform.translateRelative(glm::vec3(-0.01f, 0.f, 0.f));
+            }
+            if (glfwGetKey(window, GLFW_KEY_D)) {
+                camera.transform.translateRelative(glm::vec3(0.01f, 0.f, 0.f));
+            }
+            if (glfwGetKey(window, GLFW_KEY_W)) {
+                camera.transform.translateRelative(glm::vec3(0.f, 0.f, -0.01f));
+            }
+            if (glfwGetKey(window, GLFW_KEY_S)) {
+                camera.transform.translateRelative(glm::vec3(0.f, 0.f, 0.01f));
+            }
+            if (glfwGetKey(window, GLFW_KEY_SPACE)) {
+                camera.transform.position.y += 0.01f;
+            }
+            if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
+                camera.transform.position.y -= 0.01f;
+            }
         }
-        if (glfwGetKey(window, GLFW_KEY_D)) {
-            camera.transform.translateRelative(glm::vec3(0.01f, 0.f, 0.f));
+        if (!imio.WantCaptureMouse) {
+            double currentCursorX, currentCursorY;
+            glfwGetCursorPos(window, &currentCursorX, &currentCursorY);
+            camera.transform.rotation.y -= (currentCursorX - lastCursorX) * 0.001f;
+            camera.transform.rotation.x -= (currentCursorY - lastCursorY) * 0.001f;
+            lastCursorX = currentCursorX;
+            lastCursorY = currentCursorY;
         }
-        if (glfwGetKey(window, GLFW_KEY_W)) {
-            camera.transform.translateRelative(glm::vec3(0.f, 0.f, -0.01f));
-        }
-        if (glfwGetKey(window, GLFW_KEY_S)) {
-            camera.transform.translateRelative(glm::vec3(0.f, 0.f, 0.01f));
-        }
-        if (glfwGetKey(window, GLFW_KEY_SPACE)) {
-            camera.transform.position.y += 0.01f;
-        }
-        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
-            camera.transform.position.y -= 0.01f;
-        }
-        double currentCursorX, currentCursorY;
-        glfwGetCursorPos(window, &currentCursorX, &currentCursorY);
-        camera.transform.rotation.y -= (currentCursorX - lastCursorX) * 0.001f;
-        camera.transform.rotation.x -= (currentCursorY - lastCursorY) * 0.001f;
-        lastCursorX = currentCursorX;
-        lastCursorY = currentCursorY;
 
         // FINAL DRAW
 		renderer.render(objects, camera);
@@ -245,10 +265,20 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindTexture(GL_TEXTURE_CUBE_MAP, 0); */
 
+        // === IMGUI ===
+        ImGui::Begin("Hello, World");
+        ImGui::Text("Coucou !");
+        ImGui::End();
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
     glfwTerminate();
     return 0;
 }
