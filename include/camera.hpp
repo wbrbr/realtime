@@ -6,9 +6,18 @@
 
 class Camera {
 public:
-    Transform transform;
-
+    glm::vec3 getPosition();
+    void setPosition(glm::vec3 v);
     glm::mat4 getViewMatrix();
     glm::mat4 getPerspectiveMatrix();
+
+
+
+private:
+    glm::vec3 pos;
+    glm::vec3 target;
+    glm::mat4 matrix;
+
+    void updateMatrix();
 };
 #endif

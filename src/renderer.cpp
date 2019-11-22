@@ -132,8 +132,8 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glClear(GL_COLOR_BUFFER_BIT);
 	
 	glUseProgram(final_program.id());
-	glUniform3f(final_program.getLoc("lightPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
-	glUniform3f(final_program.getLoc("camPos"), camera.transform.position.x, camera.transform.position.y, camera.transform.position.z);
+	glUniform3f(final_program.getLoc("lightPos"), camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
+	glUniform3f(final_program.getLoc("camPos"), camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
 	glUniform1i(final_program.getLoc("albedotex"), 0);
 	glUniform1i(final_program.getLoc("normaltex"), 1);
 	glUniform1i(final_program.getLoc("depthtex"), 2);

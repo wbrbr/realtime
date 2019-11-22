@@ -9,6 +9,7 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/geometric.hpp"
+#include "glm/gtx/rotate_vector.hpp"
 #include <optional>
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -184,7 +185,7 @@ int main()
     glGenerateMipmap(GL_TEXTURE_2D); */
 
     Camera camera;
-    camera.transform.position.z += 3.f;
+    camera.setPosition(glm::vec3(0.f, 0.f, 3.f));
 
     ImageTexture albedotex1("../res/rustediron2_basecolor.png");
     ImageTexture metallictex1("../res/rustediron2_metallic.png");
@@ -227,31 +228,21 @@ int main()
         ImGui::NewFrame();
         if (!imio.WantCaptureKeyboard) {
             if (glfwGetKey(window, GLFW_KEY_A)) {
-                camera.transform.translateRelative(glm::vec3(-0.01f, 0.f, 0.f));
+                camera.setPosition(glm::rotateY(camera.getPosition(), -0.01f));
             }
             if (glfwGetKey(window, GLFW_KEY_D)) {
-                camera.transform.translateRelative(glm::vec3(0.01f, 0.f, 0.f));
+                camera.setPosition(glm::rotateY(camera.getPosition(), 0.01f));
             }
             if (glfwGetKey(window, GLFW_KEY_W)) {
-                camera.transform.translateRelative(glm::vec3(0.f, 0.f, -0.01f));
+                float r = glm::length(camera.getPosition());
+                float r2 = r - 0.01f;
+                camera.setPosition(r2/r * camera.getPosition());
             }
             if (glfwGetKey(window, GLFW_KEY_S)) {
-                camera.transform.translateRelative(glm::vec3(0.f, 0.f, 0.01f));
+                float r = glm::length(camera.getPosition());
+                float r2 = r + 0.01f;
+                camera.setPosition(r2/r * camera.getPosition());
             }
-            if (glfwGetKey(window, GLFW_KEY_SPACE)) {
-                camera.transform.position.y += 0.01f;
-            }
-            if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
-                camera.transform.position.y -= 0.01f;
-            }
-        }
-        if (!imio.WantCaptureMouse) {
-            double currentCursorX, currentCursorY;
-            glfwGetCursorPos(window, &currentCursorX, &currentCursorY);
-            camera.transform.rotation.y -= (currentCursorX - lastCursorX) * 0.001f;
-            camera.transform.rotation.x -= (currentCursorY - lastCursorY) * 0.001f;
-            lastCursorX = currentCursorX;
-            lastCursorY = currentCursorY;
         }
 
         // FINAL DRAW

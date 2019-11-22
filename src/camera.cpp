@@ -8,10 +8,26 @@
 
 glm::mat4 Camera::getViewMatrix()
 {
-    return glm::inverse(transform.getMatrix());
+    return matrix;
 }
 
 glm::mat4 Camera::getPerspectiveMatrix()
 {
     return glm::perspective(glm::radians(60.f), 16.f/9.f, 0.1f, 5.f);
+}
+
+void Camera::setPosition(glm::vec3 v)
+{
+    pos = v;
+    updateMatrix();
+}
+
+glm::vec3 Camera::getPosition()
+{
+    return pos;
+}
+
+void Camera::updateMatrix()
+{
+    matrix = glm::lookAt(pos, target, glm::vec3(0.f, 1.f, 0.f));
 }
