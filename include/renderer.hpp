@@ -10,8 +10,10 @@ private:
 	Shader deferred_program;
 	Shader final_program;
 	Shader ssao_program;
-	unsigned int fbo, albedo, normal_tex, rough_met_tex, position_tex, depth_texture, ssao_tex, noise_tex;
+	Shader draw_program;
+	unsigned int fbo, albedo, normal_tex, rough_met_tex, position_tex, depth_texture, ssao_tex, noise_tex, final_tex;
 	unsigned int ssao_fbo;
+	unsigned int final_fbo;
 	std::vector<glm::vec3> ssao_samples;
 
 public:

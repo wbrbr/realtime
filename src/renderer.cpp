@@ -2,6 +2,7 @@
 #include "../include/GL/gl3w.h"
 #include "glm/gtc/type_ptr.hpp"
 #include <random>
+#include "imgui.h"
 
 unsigned int createNoiseTexture()
 {
@@ -47,7 +48,8 @@ void setupSamples(std::vector<glm::vec3>& samples)
 
 Renderer::Renderer(): deferred_program("../shaders/deferred.vert", "../shaders/deferred.frag"),
 					  final_program("../shaders/final.vert", "../shaders/final.frag"),
-					  ssao_program("../shaders/final.vert", "../shaders/ssao.frag") {
+					  ssao_program("../shaders/final.vert", "../shaders/ssao.frag"),
+					  draw_program("../shaders/final.vert", "../shaders/draw.frag") {
 	glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	albedo = create_texture(800, 450, GL_RGB32F, GL_RGB);
@@ -63,10 +65,18 @@ Renderer::Renderer(): deferred_program("../shaders/deferred.vert", "../shaders/d
 	unsigned int attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
 	glDrawBuffers(4, attachments);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	glGenFramebuffers(1, &ssao_fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, ssao_fbo);
 	ssao_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssao_tex, 0);
+	glDrawBuffers(1, attachments);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glGenFramebuffers(1, &final_fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, final_fbo);
+	final_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, final_tex, 0);
 	glDrawBuffers(1, attachments);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -127,7 +137,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 
 	// === FINAL PASS ===
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, final_fbo);
 	glClearColor(0.4f, 0.6f, 0.8f, 1.f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	
@@ -156,5 +166,28 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glActiveTexture(GL_TEXTURE5);
 	glBindTexture(GL_TEXTURE_2D, ssao_tex);
 
+	glDrawArrays(GL_TRIANGLES, 0, 3);
+
+	// === DRAW TO SCREEN ===
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glClearColor(0.4f, 0.6f, 0.8f, 1.f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glUseProgram(draw_program.id());
+	glActiveTexture(GL_TEXTURE0);
+
+	const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao"};
+	static int current = 0;
+	ImGui::Combo("Display", &current, items, 7);
+	unsigned int display_tex = 0;
+	switch (current) {
+		case 0: display_tex = final_tex; break;
+		case 1: display_tex = albedo; break;
+		case 2: display_tex = normal_tex; break;
+		case 3: display_tex = depth_texture; break;
+		case 4: display_tex = rough_met_tex; break;
+		case 5: display_tex = position_tex; break;
+		case 6: display_tex = ssao_tex; break;
+	}
+	glBindTexture(GL_TEXTURE_2D, display_tex);
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }

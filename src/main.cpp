@@ -246,7 +246,9 @@ int main()
         }
 
         // FINAL DRAW
+        ImGui::Begin("Renderer");
 		renderer.render(objects, camera);
+        ImGui::End();
 
         /* glEnable(GL_DEPTH_TEST);
         glUseProgram(skybox_program.id());
@@ -257,9 +259,6 @@ int main()
         glBindTexture(GL_TEXTURE_CUBE_MAP, 0); */
 
         // === IMGUI ===
-        ImGui::Begin("Hello, World");
-        ImGui::Text("Coucou !");
-        ImGui::End();
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
