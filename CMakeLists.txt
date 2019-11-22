@@ -6,9 +6,12 @@ set(CMAKE_BINARY_DIR ${CMAKE_BUILD_DIR})
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 
 file(GLOB SRCS "src/*.cpp" "src/*.c")
+list(APPEND SRCS "${PROJECT_SOURCE_DIR}/external/gl3w/src/gl3w.c")
 set(CMAKE_CXX_STANDARD 17)
 add_executable(realtime ${SRCS})
-include_directories("${PROJECT_SOURCE_DIR}/include")
+include_directories("${PROJECT_SOURCE_DIR}/include" 
+                    "${PROJECT_SOURCE_DIR}/external/gl3w/include"
+                    "${PROJECT_SOURCE_DIR}/external/glm/include")
 
 if (WIN32)
     include_directories("${PROJECT_SOURCE_DIR}/external/assimp/include;${PROJECT_SOURCE_DIR}/external/glfw/include")
