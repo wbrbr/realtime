@@ -36,7 +36,10 @@ void main()
         coords.xyz /= coords.w; // perspective divide (-> normalized device coordinates)
         coords.xyz = coords.xyz * .5 + .5; // [-1, 1] -> [0, 1]
         float sampleDepth = (worldtoview * texture(positiontex, coords.xy)).z;
-        occlusion += (sampleDepth >= sample.z ? 1.0 : 0.0);  
+        occlusion += (sampleDepth >= sample.z ? 1.0 : 0.0);
+        float originalDepth = (worldtoview * texture(positiontex, TexCoords)).z;
+        float rangeCheck = smoothstep(0.0, 1.0, radius / abs(originalDepth - sampleDepth));
+        occlusion += (sampleDepth >= sample.z ? 1.0 : 0.0) * rangeCheck;   
     }
 
     occlusion = 1.0 - (occlusion / 64);

@@ -24,6 +24,14 @@
 
 #define DBG_MODE 1
 
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    Camera* camera = static_cast<Camera*>(glfwGetWindowUserPointer(window));
+    float r = glm::length(camera->getPosition());
+    float r2 = r - 0.08f * yoffset;
+    camera->setPosition(r2 / r * camera->getPosition());
+}
+
 GLFWwindow* initWindow()
 {
     if (!glfwInit())
@@ -43,6 +51,7 @@ GLFWwindow* initWindow()
         return nullptr;
     }
     // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetScrollCallback(window, scroll_callback);
     glfwMakeContextCurrent(window);
 
     if (gl3wInit())
@@ -162,7 +171,7 @@ int main()
     glEnable(GL_CULL_FACE);
 
     Object suzanne;
-    suzanne.mesh = loadMesh("../meshes/suzanne.obj").value();
+    suzanne.mesh = loadMesh("../meshes/suzanne2.obj").value();
 
     Object plane;
     plane.mesh = loadMesh("../meshes/plane.obj").value();
@@ -186,6 +195,7 @@ int main()
 
     Camera camera;
     camera.setPosition(glm::vec3(0.f, 0.f, 3.f));
+    glfwSetWindowUserPointer(window, &camera);
 
     ImageTexture albedotex1("../res/rustediron2_basecolor.png");
     ImageTexture metallictex1("../res/rustediron2_metallic.png");
@@ -212,13 +222,14 @@ int main()
 
 	Renderer renderer;
 	std::vector<Object> objects;
-	// objects.push_back(suzanne);
-    objects.push_back(cube);
+	objects.push_back(suzanne);
+    // objects.push_back(cube);
 	objects.push_back(plane);
 
     // Cubemap skybox("desertsky_up.tga", "desertsky_dn.tga", "desertsky_lf.tga", "desertsky_rt.tga", "desertsky_ft.tga", "desertsky_bk.tga");
 
     double lastCursorX, lastCursorY;
+    int lastState = GLFW_RELEASE;
     glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
     while (!glfwWindowShouldClose(window))
     {
@@ -245,9 +256,28 @@ int main()
             }
         }
 
+        int currentState = imio.WantCaptureMouse ? GLFW_RELEASE : glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+        if (currentState == GLFW_PRESS) {
+            double currentX, currentY;
+            glfwGetCursorPos(window, &currentX, &currentY);
+            if (lastState == GLFW_PRESS) {
+                float xdelta = currentX - lastCursorX;
+                float ydelta = currentY - lastCursorY;
+                glm::vec3 pos = camera.getPosition();
+                pos = glm::rotateY(pos, -0.005f * xdelta);
+                glm::vec3 right = glm::cross(camera.getTarget() - camera.getPosition(), glm::vec3(0.f, 1.f, 0.f));
+                pos = glm::rotate(pos, -0.005f * ydelta, right);
+                camera.setPosition(pos);
+            }
+            lastCursorX = currentX;
+            lastCursorY = currentY;
+        }
+        lastState = currentState;
+
         // FINAL DRAW
         ImGui::Begin("Renderer");
 		renderer.render(objects, camera);
+        ImGui::Text("FPS: %.1f", imio.Framerate);
         ImGui::End();
 
         /* glEnable(GL_DEPTH_TEST);

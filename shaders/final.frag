@@ -75,8 +75,6 @@ void main()
     float opacity = texture(roughmettex, TexCoords).b;
     float ssao = texture(ssaotex, TexCoords).r;
 
-    FragColor = vec4(texture(ssaotex, TexCoords).rgb, 1.);
-    return;
 	if (opacity < 0.5f) discard;
 
     vec3 F0 = vec3(0.04);
@@ -104,6 +102,7 @@ void main()
     float NdotL = max(dot(N, L), 0.0);
     L0 += (kD * albedo / PI + specular) * radiance * NdotL;
     vec3 ambient = vec3(.05) * albedo * ssao;
+    ambient = vec3(0.);
 
     vec3 color = L0 + ambient;
     color = color / (color + vec3(1.));
