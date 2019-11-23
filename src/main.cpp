@@ -221,7 +221,9 @@ int main()
     
 
 	Renderer renderer;
-    Cubemap skybox("../res/top.jpg", "../res/bottom.jpg", "../res/left.jpg", "../res/right.jpg", "../res/back.jpg", "../res/front.jpg");
+    // Cubemap skybox("../res/top.jpg", "../res/bottom.jpg", "../res/left.jpg", "../res/right.jpg", "../res/back.jpg", "../res/front.jpg");
+    Cubemap skybox("../res/lebombo/_posy.hdr", "../res/lebombo/_negy.hdr", "../res/lebombo/_negx.hdr", "../res/lebombo/_posx.hdr", "../res/lebombo/_negz.hdr", "../res/lebombo/_posz.hdr");
+
     renderer.setSkybox(&skybox);
 	std::vector<Object> objects;
 	objects.push_back(suzanne);

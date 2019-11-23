@@ -71,7 +71,16 @@ unsigned char* load(std::string path, int* x, int* y)
     unsigned char* data = stbi_load(path.c_str(), x, y, nullptr, 4);
     if (data == NULL)
     {
-        std::cerr << "Texture loading failed: " << stbi_failure_reason() << std::endl;
+        std::cerr << "Failed to load " << path << ": " << stbi_failure_reason() << std::endl;
+    }
+    return data;
+}
+
+float* load_hdr(std::string path, int* w, int* h)
+{
+    float* data = stbi_loadf(path.c_str(), w, h, nullptr, 3);
+    if (data == NULL) {
+        std::cerr << "Failed to load " << path << ": " << stbi_failure_reason() << std::endl;
     }
     return data;
 }
@@ -84,28 +93,28 @@ Cubemap::Cubemap(std::string up, std::string down, std::string left, std::string
     glGenTextures(1, &m_id);
     glBindTexture(GL_TEXTURE_CUBE_MAP, m_id);
 
-    unsigned char* data = load(up, &width, &height);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_SRGB8_ALPHA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    float* data = load_hdr(up, &width, &height);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
     stbi_image_free(data);
 
-    data = load(down, &width, &height);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_SRGB8_ALPHA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    data = load_hdr(down, &width, &height);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
     stbi_image_free(data);
 
-    data = load(left, &width, &height);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, GL_SRGB8_ALPHA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    data = load_hdr(left, &width, &height);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
     stbi_image_free(data);
 
-    data = load(right, &width, &height);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_SRGB8_ALPHA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    data = load_hdr(right, &width, &height);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
     stbi_image_free(data);
 
-    data = load(front, &width, &height);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_SRGB8_ALPHA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    data = load_hdr(front, &width, &height);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
     stbi_image_free(data);
 
-    data = load(back, &width, &height);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_SRGB8_ALPHA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    data = load_hdr(back, &width, &height);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
     stbi_image_free(data);
 
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
