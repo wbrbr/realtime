@@ -4,6 +4,7 @@ in vec2 TexCoords;
 
 uniform sampler2D positiontex;
 uniform sampler2D normaltex;
+uniform sampler2D roughmettex;
 uniform sampler2D noisetex;
 
 uniform vec3 samples[64];
@@ -23,7 +24,7 @@ void main()
 
 
     float occlusion = 0.0;
-    const float radius = .2;
+    const float radius = .03;
     const float bias = .025;
     for (int i = 0; i < 64; i++)
     {
@@ -36,9 +37,10 @@ void main()
         coords.xyz /= coords.w; // perspective divide (-> normalized device coordinates)
         coords.xyz = coords.xyz * .5 + .5; // [-1, 1] -> [0, 1]
         float sampleDepth = (worldtoview * texture(positiontex, coords.xy)).z;
+        float opaque = texture(roughmettex, coords.xy).z;
         occlusion += (sampleDepth >= sample.z ? 1.0 : 0.0);
         float originalDepth = (worldtoview * texture(positiontex, TexCoords)).z;
-        float rangeCheck = smoothstep(0.0, 1.0, radius / abs(originalDepth - sampleDepth));
+        float rangeCheck = opaque > 0.1 ? smoothstep(0.0, 1.0, radius / abs(originalDepth - sampleDepth)) : 0.0;
         occlusion += (sampleDepth >= sample.z ? 1.0 : 0.0) * rangeCheck;   
     }
 

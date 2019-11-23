@@ -221,12 +221,13 @@ int main()
     
 
 	Renderer renderer;
+    Cubemap skybox("../res/top.jpg", "../res/bottom.jpg", "../res/left.jpg", "../res/right.jpg", "../res/back.jpg", "../res/front.jpg");
+    renderer.setSkybox(&skybox);
 	std::vector<Object> objects;
 	objects.push_back(suzanne);
     // objects.push_back(cube);
 	objects.push_back(plane);
 
-    // Cubemap skybox("desertsky_up.tga", "desertsky_dn.tga", "desertsky_lf.tga", "desertsky_rt.tga", "desertsky_ft.tga", "desertsky_bk.tga");
 
     double lastCursorX, lastCursorY;
     int lastState = GLFW_RELEASE;

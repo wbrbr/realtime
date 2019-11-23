@@ -86,7 +86,8 @@ void main()
     vec3 H = normalize(V+L);
     float dist = length(lightPos-position);
     float attenuation = 1.0 / (dist*dist);
-    vec3 radiance = vec3(5.0, 5.0, 5.0) * attenuation;
+    vec3 radiance = vec3(2.0, 2.0, 2.0) * attenuation;
+    // radiance = vec3(0.0);
 
     float NDF = DistributionGGX(N, H, roughness);
     float G = GeometrySmith(N, V, L, roughness);
@@ -101,8 +102,7 @@ void main()
 
     float NdotL = max(dot(N, L), 0.0);
     L0 += (kD * albedo / PI + specular) * radiance * NdotL;
-    vec3 ambient = vec3(.05) * albedo * ssao;
-    ambient = vec3(0.);
+    vec3 ambient = vec3(.0) * albedo * ssao;
 
     vec3 color = L0 + ambient;
     color = color / (color + vec3(1.));

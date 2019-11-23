@@ -46,10 +46,72 @@ void setupSamples(std::vector<glm::vec3>& samples)
 	}
 }
 
+unsigned int createSkyboxVAO()
+{
+	unsigned int vao, vbo;
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	float vertices[] = {
+      
+		-1.0f,  1.0f, -1.0f,
+		-1.0f, -1.0f, -1.0f,
+		1.0f, -1.0f, -1.0f,
+		1.0f, -1.0f, -1.0f,
+		1.0f,  1.0f, -1.0f,
+		-1.0f,  1.0f, -1.0f,
+
+		-1.0f, -1.0f,  1.0f,
+		-1.0f, -1.0f, -1.0f,
+		-1.0f,  1.0f, -1.0f,
+		-1.0f,  1.0f, -1.0f,
+		-1.0f,  1.0f,  1.0f,
+		-1.0f, -1.0f,  1.0f,
+
+		1.0f, -1.0f, -1.0f,
+		1.0f, -1.0f,  1.0f,
+		1.0f,  1.0f,  1.0f,
+		1.0f,  1.0f,  1.0f,
+		1.0f,  1.0f, -1.0f,
+		1.0f, -1.0f, -1.0f,
+
+		-1.0f, -1.0f,  1.0f,
+		-1.0f,  1.0f,  1.0f,
+		1.0f,  1.0f,  1.0f,
+		1.0f,  1.0f,  1.0f,
+		1.0f, -1.0f,  1.0f,
+		-1.0f, -1.0f,  1.0f,
+
+		-1.0f,  1.0f, -1.0f,
+		1.0f,  1.0f, -1.0f,
+		1.0f,  1.0f,  1.0f,
+		1.0f,  1.0f,  1.0f,
+		-1.0f,  1.0f,  1.0f,
+		-1.0f,  1.0f, -1.0f,
+
+		-1.0f, -1.0f, -1.0f,
+		-1.0f, -1.0f,  1.0f,
+		1.0f, -1.0f, -1.0f,
+		1.0f, -1.0f, -1.0f,
+		-1.0f, -1.0f,  1.0f,
+		1.0f, -1.0f,  1.0f
+	};
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
+	glBindVertexArray(0);
+
+	return vao;
+}
+
 Renderer::Renderer(): deferred_program("../shaders/deferred.vert", "../shaders/deferred.frag"),
 					  final_program("../shaders/final.vert", "../shaders/final.frag"),
 					  ssao_program("../shaders/final.vert", "../shaders/ssao.frag"),
-					  draw_program("../shaders/final.vert", "../shaders/draw.frag") {
+					  draw_program("../shaders/final.vert", "../shaders/draw.frag"),
+					  skybox_program("../shaders/skybox.vert", "../shaders/skybox.frag"),
+					  skybox(nullptr) {
 	glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	albedo = create_texture(800, 450, GL_RGB32F, GL_RGB);
@@ -80,8 +142,17 @@ Renderer::Renderer(): deferred_program("../shaders/deferred.vert", "../shaders/d
 	glDrawBuffers(1, attachments);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	glGenFramebuffers(1, &skybox_fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, skybox_fbo);
+	skybox_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, skybox_tex, 0);
+	glDrawBuffers(1, attachments);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	noise_tex = createNoiseTexture();
 	setupSamples(ssao_samples);
+
+	cube_vao = createSkyboxVAO();
 }
 
 void Renderer::render(std::vector<Object> objects, Camera camera) {
@@ -124,6 +195,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glUniform1i(ssao_program.getLoc("positiontex"), 0);
 	glUniform1i(ssao_program.getLoc("normaltex"), 1);
 	glUniform1i(ssao_program.getLoc("noisetex"), 2);
+	glUniform1i(ssao_program.getLoc("roughmettex"), 3);
 	glUniformMatrix4fv(ssao_program.getLoc("worldtoview"), 1, GL_FALSE, glm::value_ptr(camera.getViewMatrix()));
 	glUniformMatrix4fv(ssao_program.getLoc("projection"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix()));
 	glUniform3fv(ssao_program.getLoc("samples"), 64, reinterpret_cast<float*>(ssao_samples.data()));
@@ -134,12 +206,33 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glBindTexture(GL_TEXTURE_2D, normal_tex);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, noise_tex);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, rough_met_tex);
 	glDrawArrays(GL_TRIANGLES, 0, 3);
+
+	// === SKYBOX PASS ===
+	// glBindVertexArray(0);
+	if (skybox != nullptr) {
+		glBindVertexArray(cube_vao);
+		glBindFramebuffer(GL_FRAMEBUFFER, skybox_fbo);
+		glUseProgram(skybox_program.id());
+		glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix()*glm::mat4(glm::mat3(camera.getViewMatrix()))));
+		glBindTexture(GL_TEXTURE_CUBE_MAP, skybox->id());
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		// glBindVertexArray(0);
+	}
 
 	// === FINAL PASS ===
 	glBindFramebuffer(GL_FRAMEBUFFER, final_fbo);
-	glClearColor(0.4f, 0.6f, 0.8f, 1.f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	// glClearColor(0.4f, 0.6f, 0.8f, 1.f);
+	// glClear(GL_COLOR_BUFFER_BIT);
+
+	if (skybox != nullptr) {
+		glUseProgram(draw_program.id());
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, skybox_tex);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+	}
 	
 	glUseProgram(final_program.id());
 	glUniform3f(final_program.getLoc("lightPos"), camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
@@ -170,14 +263,13 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 
 	// === DRAW TO SCREEN ===
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glClearColor(0.4f, 0.6f, 0.8f, 1.f);
-	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram(draw_program.id());
+	// glClearColor(0.f, 0.f, 0.f, 1.f);
+	// glClear(GL_COLOR_BUFFER_BIT);
 	glActiveTexture(GL_TEXTURE0);
-
-	const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao"};
+	const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao", "skybox"};
 	static int current = 0;
-	ImGui::Combo("Display", &current, items, 7);
+	ImGui::Combo("Display", &current, items, 8);
 	unsigned int display_tex = 0;
 	switch (current) {
 		case 0: display_tex = final_tex; break;
@@ -187,7 +279,13 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 		case 4: display_tex = rough_met_tex; break;
 		case 5: display_tex = position_tex; break;
 		case 6: display_tex = ssao_tex; break;
+		case 7: display_tex = skybox_tex; break;
 	}
 	glBindTexture(GL_TEXTURE_2D, display_tex);
 	glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
+void Renderer::setSkybox(Cubemap* skybox)
+{
+	this->skybox = skybox;
 }
