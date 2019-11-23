@@ -111,7 +111,8 @@ Renderer::Renderer(): deferred_program("../shaders/deferred.vert", "../shaders/d
 					  ssao_program("../shaders/final.vert", "../shaders/ssao.frag"),
 					  draw_program("../shaders/final.vert", "../shaders/draw.frag"),
 					  skybox_program("../shaders/skybox.vert", "../shaders/skybox.frag"),
-					  skybox(nullptr) {
+					  skybox(nullptr),
+					  irradiance("../res/newport/irr_posy.hdr", "../res/newport/irr_negy.hdr", "../res/newport/irr_negx.hdr", "../res/newport/irr_posx.hdr", "../res/newport/irr_negz.hdr", "../res/newport/irr_posz.hdr") {
 	glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	albedo = create_texture(800, 450, GL_RGB32F, GL_RGB);
@@ -235,7 +236,9 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	}
 	
 	glUseProgram(final_program.id());
-	glUniform3f(final_program.getLoc("lightPos"), camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
+	static float lightPos[3] = {1.f, 1.f, 1.f};
+	ImGui::DragFloat3("Light position", lightPos, 0.001f, -10.f, 10.f);
+	glUniform3f(final_program.getLoc("lightPos"), 1.f, 1.f, 1.f);
 	glUniform3f(final_program.getLoc("camPos"), camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
 	glUniform1i(final_program.getLoc("albedotex"), 0);
 	glUniform1i(final_program.getLoc("normaltex"), 1);
@@ -243,8 +246,10 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glUniform1i(final_program.getLoc("roughmettex"), 3);
 	glUniform1i(final_program.getLoc("positiontex"), 4);
 	glUniform1i(final_program.getLoc("ssaotex"), 5);
-	glUniform1f(final_program.getLoc("zNear"), 0.1f);
-	glUniform1f(final_program.getLoc("zFar"), 5.f);
+	glUniform1i(final_program.getLoc("irradianceMap"), 6);
+	static float lightStrength = 1.f;
+	ImGui::DragFloat("Light strength", &lightStrength, 0.01f, 0.f, 10.f);
+	glUniform1f(final_program.getLoc("lightStrength"), lightStrength);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, albedo);
@@ -258,6 +263,8 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glBindTexture(GL_TEXTURE_2D, position_tex);
 	glActiveTexture(GL_TEXTURE5);
 	glBindTexture(GL_TEXTURE_2D, ssao_tex);
+	glActiveTexture(GL_TEXTURE6);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, irradiance.id());
 
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 

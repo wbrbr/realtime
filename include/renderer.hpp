@@ -26,5 +26,6 @@ private:
 	std::vector<glm::vec3> ssao_samples;
 
 	Cubemap* skybox;
+	Cubemap irradiance;
 };
 #endif

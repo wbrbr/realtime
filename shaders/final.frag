@@ -8,20 +8,15 @@ uniform sampler2D depthtex;
 uniform sampler2D roughmettex;
 uniform sampler2D positiontex;
 uniform sampler2D ssaotex;
-uniform float zFar;
-uniform float zNear;
+uniform samplerCube irradianceMap;
+
 
 uniform vec3 camPos;
 uniform vec3 lightPos;
+uniform float lightStrength;
 
 const float WIDTH = 800.0;
 const float HEIGHT = 450.0;
-
-float linearizeDepth(float d)
-{
-    d = 2.0 * d - 1.0;
-    return (2.0 * zNear)  / (zFar + zNear - d * (zFar - zNear));
-}
 
 const float PI = 3.14159265359;
 
@@ -78,7 +73,7 @@ void main()
 	if (opacity < 0.5f) discard;
 
     vec3 F0 = vec3(0.04);
-    F0 = mix(F0, albedo, metallic);
+    // F0 = mix(F0, albedo, metallic);
 
     vec3 L0 = vec3(0.0);
 
@@ -86,8 +81,7 @@ void main()
     vec3 H = normalize(V+L);
     float dist = length(lightPos-position);
     float attenuation = 1.0 / (dist*dist);
-    vec3 radiance = vec3(2.0, 2.0, 2.0) * attenuation;
-    // radiance = vec3(0.0);
+    vec3 radiance = vec3(lightStrength) * attenuation;
 
     float NDF = DistributionGGX(N, H, roughness);
     float G = GeometrySmith(N, V, L, roughness);
@@ -98,11 +92,16 @@ void main()
 
     vec3 kS = F;
     vec3 kD = vec3(1.0) - kS;
-    kD *= 1.0 - metallic;
+    kD *= (1.0 - metallic);
 
     float NdotL = max(dot(N, L), 0.0);
     L0 += (kD * albedo / PI + specular) * radiance * NdotL;
-    vec3 ambient = vec3(.0) * albedo * ssao;
+
+    // ambient lighting (env map)
+    // TODO: recalculate Fresnel
+    vec3 irradiance = texture(irradianceMap, N).rgb;
+    vec3 diffuse = irradiance * albedo; // TODO: * ao
+    vec3 ambient = diffuse * kD; // * ao
 
     vec3 color = L0 + ambient;
     color = color / (color + vec3(1.));
