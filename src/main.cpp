@@ -85,7 +85,7 @@ std::optional<Mesh> loadMesh(std::string path)
     }
     aiMesh* m = scene->mMeshes[0];
 
-    unsigned int vao, vbo;
+    unsigned int vao, vbo, ebo;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
     glGenBuffers(1, &vbo);
@@ -130,6 +130,18 @@ std::optional<Mesh> loadMesh(std::string path)
         glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 8 * sizeof(float), m->mNumVertices * 3 * sizeof(float), tangents.data());
         glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 11 * sizeof(float), m->mNumVertices * 3 * sizeof(float), bitangents.data());
     }
+
+    glCreateBuffers(1, &ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    unsigned int* indices = static_cast<unsigned int*>(malloc(m->mNumFaces * 3 * sizeof(unsigned int)));
+    for (unsigned int i = 0; i < m->mNumFaces; i++) {
+        aiFace f = m->mFaces[i];
+        indices[3*i] = f.mIndices[0];
+        indices[3*i+1] = f.mIndices[1];
+        indices[3*i+2] = f.mIndices[2];
+    }
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m->mNumFaces*3*sizeof(unsigned int), indices, GL_STATIC_DRAW);
+    free(indices);
     
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(m->mNumVertices * 3 * sizeof(float)));
@@ -147,6 +159,7 @@ std::optional<Mesh> loadMesh(std::string path)
     mesh.vao = vao;
     mesh.vbo = vbo;
     mesh.numVertices = m->mNumVertices;
+    mesh.numIndices = 3*m->mNumFaces;
     return mesh;
 }
 
@@ -171,7 +184,8 @@ int main()
     glEnable(GL_CULL_FACE);
 
     Object suzanne;
-    suzanne.mesh = loadMesh("../meshes/suzanne2.obj").value();
+    // suzanne.mesh = loadMesh("../meshes/suzanne2.obj").value();
+    suzanne.mesh = loadMesh("../meshes/Box.gltf").value();
 
     Object plane;
     plane.mesh = loadMesh("../meshes/plane.obj").value();

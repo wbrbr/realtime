@@ -3,6 +3,6 @@
 
 struct Mesh
 {
-    unsigned int vao, vbo, numVertices;
+    unsigned int vao, vbo, numVertices, numIndices;
 };
 #endif

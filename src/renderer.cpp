@@ -183,7 +183,8 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 
 		glBindVertexArray(obj.mesh.vao);
 		glUniformMatrix4fv(deferred_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(obj.transform.getMatrix()));
-		glDrawArrays(GL_TRIANGLES, 0, obj.mesh.numVertices);
+		// glDrawArrays(GL_TRIANGLES, 0, obj.mesh.numVertices);
+		glDrawElements(GL_TRIANGLES, obj.mesh.numIndices, GL_UNSIGNED_INT, (void*)0);
 	}
 	
 	glDisable(GL_DEPTH_TEST);
