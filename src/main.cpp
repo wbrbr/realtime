@@ -4,6 +4,7 @@
 #include "assimp/Importer.hpp"
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
+#include "assimp/pbrmaterial.h"
 #include "glm/vec3.hpp"
 #include "glm/mat4x4.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -75,7 +76,7 @@ void dbgcallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei
     }
 }
 
-std::optional<Mesh> loadMesh(std::string path)
+std::optional<Object> loadMesh(std::string path)
 {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
@@ -160,7 +161,27 @@ std::optional<Mesh> loadMesh(std::string path)
     mesh.vbo = vbo;
     mesh.numVertices = m->mNumVertices;
     mesh.numIndices = 3*m->mNumFaces;
-    return mesh;
+
+    Object obj;
+    obj.mesh = mesh;
+    if (scene->HasMaterials()) {
+        aiMaterial* material = scene->mMaterials[0];
+        aiString prefix("../res/");
+        aiString texPath;
+        material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &texPath);
+        if (texPath.length > 0) {
+            prefix.Append(texPath.C_Str());
+            ImageTexture* tex = new ImageTexture(prefix.C_Str());
+            obj.material.albedoMap = tex;
+        }
+        material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &texPath);
+        if (texPath.length > 0) {
+            prefix.Set("../res/");
+            prefix.Append(texPath.C_Str());
+            ImageTexture* tex = new ImageTexture(prefix.C_Str());
+        }
+    }
+    return obj;
 }
 
 int main()
@@ -183,16 +204,16 @@ int main()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
-    Object suzanne;
+    Object suzanne = loadMesh("../meshes/Suzanne.gltf").value();
     // suzanne.mesh = loadMesh("../meshes/suzanne2.obj").value();
-    suzanne.mesh = loadMesh("../meshes/Box.gltf").value();
+    // suzanne.mesh = loadMesh("../meshes/Box.gltf").value();
 
-    Object plane;
-    plane.mesh = loadMesh("../meshes/plane.obj").value();
+    Object plane = loadMesh("../meshes/plane.obj").value();
+    // plane.mesh = loadMesh("../meshes/plane.obj").value();
     plane.transform.position.y -= 0.5f;
 
-    Object cube;
-    cube.mesh = loadMesh("../meshes/cube.obj").value();
+    Object cube = loadMesh("../meshes/cube.obj").value();
+    // cube.mesh = loadMesh("../meshes/cube.obj").value();
     cube.transform.scale = glm::vec3(.3f, .3f, .3f);
 
     /* Object cube;
@@ -220,7 +241,7 @@ int main()
     ImageTexture roughnesstex2("../res/metalgrid3_roughness.png");
     ImageTexture normaltex2("../res/metalgrid3_normal-ogl.png");
 
-	suzanne.material.albedoMap = &albedotex1;
+	// suzanne.material.albedoMap = &albedotex1;
 	suzanne.material.metallicMap = &metallictex1;
 	suzanne.material.roughnessMap = &roughnesstex1;
 	suzanne.material.normalMap = &normaltex1;
