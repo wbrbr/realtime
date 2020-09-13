@@ -179,6 +179,7 @@ std::optional<Object> loadMesh(std::string path)
             prefix.Set("../res/");
             prefix.Append(texPath.C_Str());
             ImageTexture* tex = new ImageTexture(prefix.C_Str());
+            obj.material.roughnessMetallicMap = tex;
         }
     }
     return obj;
@@ -205,6 +206,7 @@ int main()
     glEnable(GL_CULL_FACE);
 
     Object suzanne = loadMesh("../meshes/Suzanne.gltf").value();
+    // Object suzanne = loadMesh("../res/suzanne2.obj").value();
     // suzanne.mesh = loadMesh("../meshes/suzanne2.obj").value();
     // suzanne.mesh = loadMesh("../meshes/Box.gltf").value();
 
@@ -242,17 +244,17 @@ int main()
     ImageTexture normaltex2("../res/metalgrid3_normal-ogl.png");
 
 	// suzanne.material.albedoMap = &albedotex1;
-	suzanne.material.metallicMap = &metallictex1;
-	suzanne.material.roughnessMap = &roughnesstex1;
+	// suzanne.material.metallicMap = &metallictex1;
+	// suzanne.material.roughnessMap = &roughnesstex1;
 	suzanne.material.normalMap = &normaltex1;
-	plane.material.albedoMap = &albedotex2;
-	plane.material.metallicMap = &metallictex2;
-	plane.material.roughnessMap = &roughnesstex2;
-	plane.material.normalMap = &normaltex2;
-    cube.material.albedoMap = &albedotex1;
-    cube.material.metallicMap = &metallictex1;
-    cube.material.roughnessMap = &roughnesstex1;
-    cube.material.normalMap = &normaltex1;
+	// plane.material.albedoMap = &albedotex2;
+	// plane.material.metallicMap = &metallictex2;
+	// plane.material.roughnessMap = &roughnesstex2;
+	// plane.material.normalMap = &normaltex2;
+    // cube.material.albedoMap = &albedotex1;
+    // cube.material.metallicMap = &metallictex1;
+    // cube.material.roughnessMap = &roughnesstex1;
+    // cube.material.normalMap = &normaltex1;
     
 
 	Renderer renderer;
@@ -263,7 +265,7 @@ int main()
 	std::vector<Object> objects;
 	objects.push_back(suzanne);
     // objects.push_back(cube);
-	objects.push_back(plane);
+	// objects.push_back(plane);
 
 
     double lastCursorX, lastCursorY;

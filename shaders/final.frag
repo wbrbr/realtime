@@ -65,15 +65,13 @@ void main()
     vec3 position = texture(positiontex, TexCoords).rgb;
     vec3 V = normalize(camPos - position);
     vec3 albedo = texture(albedotex, TexCoords).rgb;
-    float roughness = texture(roughmettex, TexCoords).r;
-    float metallic = texture(roughmettex, TexCoords).g;
-    float opacity = texture(roughmettex, TexCoords).b;
+    float roughness = texture(roughmettex, TexCoords).g;
+    float metallic = texture(roughmettex, TexCoords).b;
+    float opacity = texture(roughmettex, TexCoords).r;
     float ssao = texture(ssaotex, TexCoords).r;
 
-	if (opacity < 0.5f) discard;
-
-    vec3 F0 = vec3(0.04);
-    // F0 = mix(F0, albedo, metallic);
+    if (opacity < .5) discard;
+    vec3 F0 = mix(vec3(0.04), albedo, metallic); 
 
     vec3 L0 = vec3(0.0);
 
@@ -98,10 +96,10 @@ void main()
     L0 += (kD * albedo / PI + specular) * radiance * NdotL;
 
     // ambient lighting (env map)
-    // TODO: recalculate Fresnel
     vec3 irradiance = texture(irradianceMap, N).rgb;
     vec3 diffuse = irradiance * albedo; // TODO: * ao
-    vec3 ambient = diffuse * kD; // * ao
+    kD = vec3(1.) - max(fresnelShlick(dot(N, V), F0), 0);
+    vec3 ambient = diffuse * (1. - metallic);
 
     vec3 color = L0 + ambient;
     color = color / (color + vec3(1.));

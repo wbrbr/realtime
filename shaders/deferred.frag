@@ -11,8 +11,7 @@ in vec3 Position;
 in mat3 TBN;
 
 uniform sampler2D albedoMap;
-uniform sampler2D metallicMap;
-uniform sampler2D roughnessMap;
+uniform sampler2D roughnessMetallicMap;
 uniform sampler2D normalMap;
 
 void main()
@@ -29,11 +28,9 @@ void main()
     normal = normalize(TBN * N);
 
     // === ROUGHNESS ===
-    roughness_metallic.r = texture(roughnessMap, TexCoords).r;
+    roughness_metallic.g = texture(roughnessMetallicMap, TexCoords).g;
     
     // === METALLIC ===
-    roughness_metallic.g = texture(metallicMap, TexCoords).r;
-
-    // === OPAQUE ===
-    roughness_metallic.b = 1.0;
+    roughness_metallic.b = texture(roughnessMetallicMap, TexCoords).b;
+    roughness_metallic.r = 1.;
 }

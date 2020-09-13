@@ -167,18 +167,15 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glUseProgram(deferred_program.id());
 	glUniformMatrix4fv(deferred_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
 	glUniform1i(deferred_program.getLoc("albedoMap"), 0);
-	glUniform1i(deferred_program.getLoc("metallicMap"), 1);
-	glUniform1i(deferred_program.getLoc("roughnessMap"), 2);
-	glUniform1i(deferred_program.getLoc("normalMap"), 3);
+	glUniform1i(deferred_program.getLoc("roughnessMetallicMap"), 1);
+	glUniform1i(deferred_program.getLoc("normalMap"), 2);
 
 	for (auto obj : objects) {
 		glActiveTexture(GL_TEXTURE0 + 0);
 		glBindTexture(GL_TEXTURE_2D, obj.material.albedoMap->id());
 		glActiveTexture(GL_TEXTURE0 + 1);
-		glBindTexture(GL_TEXTURE_2D, obj.material.metallicMap->id());
+		glBindTexture(GL_TEXTURE_2D, obj.material.roughnessMetallicMap->id());
 		glActiveTexture(GL_TEXTURE0 + 2);
-		glBindTexture(GL_TEXTURE_2D, obj.material.roughnessMap->id());
-		glActiveTexture(GL_TEXTURE0 + 3);
 		glBindTexture(GL_TEXTURE_2D, obj.material.normalMap->id());
 
 		glBindVertexArray(obj.mesh.vao);
