@@ -172,6 +172,8 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index)
             texPath.Append(filePath.C_Str());
             ImageTexture* tex = new ImageTexture(texPath.C_Str());
             obj.material.albedoMap = tex;
+        } else {
+            std::cerr << "no baseColor texture" << std::endl;
         }
         texPath = prefix;
         material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &filePath);
@@ -179,6 +181,8 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index)
             texPath.Append(filePath.C_Str());
             ImageTexture* tex = new ImageTexture(texPath.C_Str());
             obj.material.roughnessMetallicMap = tex;
+        } else {
+            std::cerr << "no roughness/metallic texture" << std::endl;
         }
         texPath = prefix;
         bool normalMap = true;
@@ -243,71 +247,17 @@ int main()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
-    // Object suzanne = loadMesh("../meshes/Suzanne.gltf").value();
-    // Object helmet = loadMesh("../meshes/FlightHelmet/FlightHelmet.gltf").value();
-    // Object avocado = loadMesh("../res/Avocado.gltf").value();
-    // Object suzanne = loadMesh("../res/suzanne2.obj").value();
-    // suzanne.mesh = loadMesh("../meshes/suzanne2.obj").value();
-    // suzanne.mesh = loadMesh("../meshes/Box.gltf").value();
-
-    // Object plane = loadMesh("../meshes/plane.obj").value();
-    // plane.mesh = loadMesh("../meshes/plane.obj").value();
-    // plane.transform.position.y -= 0.5f;
-
-    // Object cube = loadMesh("../meshes/cube.obj").value();
-    // cube.mesh = loadMesh("../meshes/cube.obj").value();
-    // cube.transform.scale = glm::vec3(.3f, .3f, .3f);
-
-    /* Object cube;
-    cube.mesh = loadMesh("../meshes/skybox.obj").value(); */
-
-    /* glEnable(GL_TEXTURE_CUBE_MAP); */
-    /* glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    unsigned int texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, x, y, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D); */
-
     Camera camera;
     camera.setPosition(glm::vec3(0.f, 0.f, 3.f));
     glfwSetWindowUserPointer(window, &camera);
 
-    ImageTexture albedotex1("../res/rustediron2_basecolor.png");
-    ImageTexture metallictex1("../res/rustediron2_metallic.png");
-    ImageTexture roughnesstex1("../res/rustediron2_roughness.png");
-    ImageTexture normaltex1("../res/rustediron2_normal.png");
-    ImageTexture albedotex2("../res/metalgrid3_basecolor.png");
-    ImageTexture metallictex2("../res/metalgrid3_metallic.png");
-    ImageTexture roughnesstex2("../res/metalgrid3_roughness.png");
-    ImageTexture normaltex2("../res/metalgrid3_normal-ogl.png");
-
-	// suzanne.material.albedoMap = &albedotex1;
-	// suzanne.material.metallicMap = &metallictex1;
-	// suzanne.material.roughnessMap = &roughnesstex1;
-	// suzanne.material.normalMap = &normaltex1;
-	// plane.material.albedoMap = &albedotex2;
-	// plane.material.metallicMap = &metallictex2;
-	// plane.material.roughnessMap = &roughnesstex2;
-	// plane.material.normalMap = &normaltex2;
-    // cube.material.albedoMap = &albedotex1;
-    // cube.material.metallicMap = &metallictex1;
-    // cube.material.roughnessMap = &roughnesstex1;
-    // cube.material.normalMap = &normaltex1;
-    
 
 	Renderer renderer;
-    // Cubemap skybox("../res/top.jpg", "../res/bottom.jpg", "../res/left.jpg", "../res/right.jpg", "../res/back.jpg", "../res/front.jpg");
     Cubemap skybox("../res/newport/_posy.hdr", "../res/newport/_negy.hdr", "../res/newport/_negx.hdr", "../res/newport/_posx.hdr", "../res/newport/_negz.hdr", "../res/newport/_posz.hdr");
 
     renderer.setSkybox(&skybox);
 	std::vector<Object> objects = loadFile("../meshes/FlightHelmet/FlightHelmet.gltf");
-	// objects.push_back(suzanne);
-    // objects.push_back(cube);
-	// objects.push_back(plane);
-    // objects.push_back(avocado);
-    // objects.push_back(helmet);
+	// std::vector<Object> objects = loadFile("../meshes/Suzanne2.gltf");
 
 
     double lastCursorX, lastCursorY;
