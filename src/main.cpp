@@ -181,6 +181,19 @@ std::optional<Object> loadMesh(std::string path)
             ImageTexture* tex = new ImageTexture(prefix.C_Str());
             obj.material.roughnessMetallicMap = tex;
         }
+        if (material->GetTextureCount(aiTextureType_NORMALS) > 0) {
+            material->GetTexture(aiTextureType_NORMALS, 0, &texPath);
+            prefix.Set("../res/");
+            std::cout << texPath.C_Str() << std::endl;
+            prefix.Append(texPath.C_Str());
+            ImageTexture* tex = new ImageTexture(prefix.C_Str());
+            obj.material.normalMap = tex;
+        } else {
+            std::cout << "no normal map" << std::endl;
+            unsigned char color[] = { 128, 128, 255, 255 };
+            ImageTexture* tex = new ImageTexture(color, 1, 1);
+            obj.material.normalMap = tex;
+        }
     }
     return obj;
 }
@@ -206,17 +219,18 @@ int main()
     glEnable(GL_CULL_FACE);
 
     Object suzanne = loadMesh("../meshes/Suzanne.gltf").value();
+    // Object avocado = loadMesh("../res/Avocado.gltf").value();
     // Object suzanne = loadMesh("../res/suzanne2.obj").value();
     // suzanne.mesh = loadMesh("../meshes/suzanne2.obj").value();
     // suzanne.mesh = loadMesh("../meshes/Box.gltf").value();
 
-    Object plane = loadMesh("../meshes/plane.obj").value();
+    // Object plane = loadMesh("../meshes/plane.obj").value();
     // plane.mesh = loadMesh("../meshes/plane.obj").value();
-    plane.transform.position.y -= 0.5f;
+    // plane.transform.position.y -= 0.5f;
 
-    Object cube = loadMesh("../meshes/cube.obj").value();
+    // Object cube = loadMesh("../meshes/cube.obj").value();
     // cube.mesh = loadMesh("../meshes/cube.obj").value();
-    cube.transform.scale = glm::vec3(.3f, .3f, .3f);
+    // cube.transform.scale = glm::vec3(.3f, .3f, .3f);
 
     /* Object cube;
     cube.mesh = loadMesh("../meshes/skybox.obj").value(); */
@@ -246,7 +260,7 @@ int main()
 	// suzanne.material.albedoMap = &albedotex1;
 	// suzanne.material.metallicMap = &metallictex1;
 	// suzanne.material.roughnessMap = &roughnesstex1;
-	suzanne.material.normalMap = &normaltex1;
+	// suzanne.material.normalMap = &normaltex1;
 	// plane.material.albedoMap = &albedotex2;
 	// plane.material.metallicMap = &metallictex2;
 	// plane.material.roughnessMap = &roughnesstex2;
@@ -266,6 +280,7 @@ int main()
 	objects.push_back(suzanne);
     // objects.push_back(cube);
 	// objects.push_back(plane);
+    // objects.push_back(avocado);
 
 
     double lastCursorX, lastCursorY;

@@ -9,6 +9,7 @@ class ImageTexture
 {
 public:
     ImageTexture(std::string path, bool srgb = false);
+    ImageTexture(unsigned char *data, unsigned int width, unsigned int height);
     ~ImageTexture();
     unsigned int id();
     unsigned int width();
