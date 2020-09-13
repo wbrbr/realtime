@@ -1,6 +1,7 @@
 #include "GL/gl3w.h"
 #include "GLFW/glfw3.h"
 #include <iostream>
+#include <filesystem>
 #include "assimp/Importer.hpp"
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
@@ -76,15 +77,9 @@ void dbgcallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei
     }
 }
 
-std::optional<Object> loadMesh(std::string path)
+Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index)
 {
-    Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
-    if (!scene) {
-        std::cerr << importer.GetErrorString() << std::endl;
-        return {};
-    }
-    aiMesh* m = scene->mMeshes[0];
+    aiMesh* m = scene->mMeshes[mesh_index];
 
     unsigned int vao, vbo, ebo;
     glGenVertexArrays(1, &vao);
@@ -164,31 +159,42 @@ std::optional<Object> loadMesh(std::string path)
 
     Object obj;
     obj.mesh = mesh;
+
+    std::string prefixPath = std::filesystem::path(path).parent_path();
+    aiString prefix(prefixPath.c_str());
+    prefix.Append("/");
+    aiString filePath;
     if (scene->HasMaterials()) {
-        aiMaterial* material = scene->mMaterials[0];
-        aiString prefix("../res/");
-        aiString texPath;
-        material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &texPath);
-        if (texPath.length > 0) {
-            prefix.Append(texPath.C_Str());
-            ImageTexture* tex = new ImageTexture(prefix.C_Str());
+        aiMaterial* material = scene->mMaterials[m->mMaterialIndex];
+        material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &filePath);
+        aiString texPath(prefix);
+        if (filePath.length > 0) {
+            texPath.Append(filePath.C_Str());
+            ImageTexture* tex = new ImageTexture(texPath.C_Str());
             obj.material.albedoMap = tex;
         }
-        material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &texPath);
-        if (texPath.length > 0) {
-            prefix.Set("../res/");
-            prefix.Append(texPath.C_Str());
-            ImageTexture* tex = new ImageTexture(prefix.C_Str());
+        texPath = prefix;
+        material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &filePath);
+        if (filePath.length > 0) {
+            texPath.Append(filePath.C_Str());
+            ImageTexture* tex = new ImageTexture(texPath.C_Str());
             obj.material.roughnessMetallicMap = tex;
         }
+        texPath = prefix;
+        bool normalMap = true;
         if (material->GetTextureCount(aiTextureType_NORMALS) > 0) {
-            material->GetTexture(aiTextureType_NORMALS, 0, &texPath);
-            prefix.Set("../res/");
-            std::cout << texPath.C_Str() << std::endl;
-            prefix.Append(texPath.C_Str());
-            ImageTexture* tex = new ImageTexture(prefix.C_Str());
-            obj.material.normalMap = tex;
+            material->GetTexture(aiTextureType_NORMALS, 0, &filePath);
+            if (filePath.length == 0) {
+                normalMap = false;
+            } else {
+                texPath.Append(filePath.C_Str());
+                ImageTexture* tex = new ImageTexture(texPath.C_Str());
+                obj.material.normalMap = tex;
+            }
         } else {
+            normalMap = false;
+        }
+        if (!normalMap) {
             std::cout << "no normal map" << std::endl;
             unsigned char color[] = { 128, 128, 255, 255 };
             ImageTexture* tex = new ImageTexture(color, 1, 1);
@@ -196,6 +202,25 @@ std::optional<Object> loadMesh(std::string path)
         }
     }
     return obj;
+}
+
+std::vector<Object> loadFile(std::string path)
+{
+    std::vector<Object> res;
+
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
+    if (!scene) {
+        std::cerr << importer.GetErrorString() << std::endl;
+        return res;
+    }
+
+    for (unsigned int i = 0; i < scene->mNumMeshes; i++)
+    {
+        res.push_back(loadMesh(path, scene, i));
+    }
+
+    return res;
 }
 
 int main()
@@ -218,7 +243,8 @@ int main()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
-    Object suzanne = loadMesh("../meshes/Suzanne.gltf").value();
+    // Object suzanne = loadMesh("../meshes/Suzanne.gltf").value();
+    // Object helmet = loadMesh("../meshes/FlightHelmet/FlightHelmet.gltf").value();
     // Object avocado = loadMesh("../res/Avocado.gltf").value();
     // Object suzanne = loadMesh("../res/suzanne2.obj").value();
     // suzanne.mesh = loadMesh("../meshes/suzanne2.obj").value();
@@ -276,11 +302,12 @@ int main()
     Cubemap skybox("../res/newport/_posy.hdr", "../res/newport/_negy.hdr", "../res/newport/_negx.hdr", "../res/newport/_posx.hdr", "../res/newport/_negz.hdr", "../res/newport/_posz.hdr");
 
     renderer.setSkybox(&skybox);
-	std::vector<Object> objects;
-	objects.push_back(suzanne);
+	std::vector<Object> objects = loadFile("../meshes/FlightHelmet/FlightHelmet.gltf");
+	// objects.push_back(suzanne);
     // objects.push_back(cube);
 	// objects.push_back(plane);
     // objects.push_back(avocado);
+    // objects.push_back(helmet);
 
 
     double lastCursorX, lastCursorY;
