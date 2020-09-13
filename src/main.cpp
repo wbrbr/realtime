@@ -346,10 +346,18 @@ int main()
                 float xdelta = currentX - lastCursorX;
                 float ydelta = currentY - lastCursorY;
                 glm::vec3 pos = camera.getPosition();
-                pos = glm::rotateY(pos, -0.005f * xdelta);
-                glm::vec3 right = glm::cross(camera.getTarget() - camera.getPosition(), glm::vec3(0.f, 1.f, 0.f));
-                pos = glm::rotate(pos, -0.005f * ydelta, right);
-                camera.setPosition(pos);
+                glm::vec3 right = glm::normalize(glm::cross(camera.getTarget() - camera.getPosition(), glm::vec3(0.f, 1.f, 0.f)));
+                glm::vec3 notup = glm::cross(right, glm::normalize(camera.getTarget() - camera.getPosition()));
+
+                if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) { // translation
+                    glm::vec3 translation = 0.001f * (xdelta * right + ydelta * notup);
+                    camera.setPosition(pos + translation);
+                    camera.setTarget(camera.getTarget() + translation);
+                } else { // rotation
+                    pos = glm::rotateY(pos, -0.005f * xdelta);
+                    pos = glm::rotate(pos, -0.005f * ydelta, right);
+                    camera.setPosition(pos);
+                }
             }
             lastCursorX = currentX;
             lastCursorY = currentY;

@@ -8,6 +8,7 @@ class Camera {
 public:
     glm::vec3 getPosition();
     void setPosition(glm::vec3 v);
+    void setTarget(glm::vec3 v);
     glm::vec3 getTarget();
     glm::mat4 getViewMatrix();
     glm::mat4 getPerspectiveMatrix();

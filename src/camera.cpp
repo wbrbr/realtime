@@ -36,3 +36,8 @@ void Camera::updateMatrix()
 {
     matrix = glm::lookAt(pos, target, glm::vec3(0.f, 1.f, 0.f));
 }
+
+void Camera::setTarget(glm::vec3 v)
+{
+    target = v;
+}
