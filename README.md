@@ -10,6 +10,9 @@ Written in C++ using OpenGL.
 - Metallic/roughness workflow
 - Deferred rendering
 - Normal mapping
+
 ![](https://i.imgur.com/7wl0QNT.png)
+
 - Diffuse environment lighting
+
 ![](https://i.imgur.com/GDBCQPG.png)
