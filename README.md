@@ -1,17 +1,15 @@
-# Features
+# Real-time renderer
 
-### Metallic/roughness workflow
-![](https://i.imgur.com/mUfcKTq.png)
+![](https://i.imgur.com/fFzDX3k.png)
+![](https://i.imgur.com/Lb437m5.png)
 
-### Deferred rendering
-![](https://i.imgur.com/2B9fvZv.png)
-![](https://i.imgur.com/gth7wwM.png)
-![](https://i.imgur.com/DHCTfbW.png)
-![](https://i.imgur.com/NS8TtUu.png)
+Written in C++ using OpenGL.
 
+## Features
 
-### Normal mapping
-![](https://i.imgur.com/mUfcKTq.png)
-
-### Skybox
-![](https://i.imgur.com/AsTlFQR.png)
+- Metallic/roughness workflow
+- Deferred rendering
+- Normal mapping
+![](https://i.imgur.com/7wl0QNT.png)
+- Diffuse environment lighting
+![](https://i.imgur.com/GDBCQPG.png)
