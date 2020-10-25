@@ -1,7 +1,9 @@
 #include "GL/gl3w.h"
 #include "GLFW/glfw3.h"
+#include "stb_image.h"
 #include <iostream>
 #include <filesystem>
+#include <cassert>
 #include "assimp/Importer.hpp"
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
@@ -74,6 +76,29 @@ void dbgcallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei
 {
     if (DBG_MODE) {
         std::cout << "debug call: " << msg << std::endl;
+    }
+}
+
+ImageTexture* loadTextureFromPath(aiString prefix, aiString fileName, const aiScene* scene)
+{
+    // embedded texture
+    if (fileName.C_Str()[0] == '*')
+    {
+        const aiTexture *embeddedTex = scene->GetEmbeddedTexture(fileName.C_Str());
+        assert(embeddedTex->mHeight == 0); // must be a compressed texture
+        int w, h, n;
+        unsigned char *data = stbi_load_from_memory((unsigned char *)embeddedTex->pcData, embeddedTex->mWidth, &w, &h, &n, 4);
+        if (data == nullptr)
+        {
+            std::cerr << "Embedded texture loading failed: " << stbi_failure_reason() << std::endl;
+        }
+        return new ImageTexture(data, w, h);
+    }
+    else
+    {
+        aiString texPath = prefix;
+        texPath.Append(fileName.C_Str());
+        return new ImageTexture(texPath.C_Str());
     }
 }
 
@@ -169,18 +194,13 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index)
         material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &filePath);
         aiString texPath(prefix);
         if (filePath.length > 0) {
-            texPath.Append(filePath.C_Str());
-            ImageTexture* tex = new ImageTexture(texPath.C_Str());
-            obj.material.albedoMap = tex;
+            obj.material.albedoMap = loadTextureFromPath(prefix, filePath, scene);
         } else {
             std::cerr << "no baseColor texture" << std::endl;
         }
-        texPath = prefix;
         material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &filePath);
         if (filePath.length > 0) {
-            texPath.Append(filePath.C_Str());
-            ImageTexture* tex = new ImageTexture(texPath.C_Str());
-            obj.material.roughnessMetallicMap = tex;
+            obj.material.roughnessMetallicMap = loadTextureFromPath(prefix, filePath, scene);
         } else {
             std::cerr << "no roughness/metallic texture" << std::endl;
         }
@@ -191,9 +211,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index)
             if (filePath.length == 0) {
                 normalMap = false;
             } else {
-                texPath.Append(filePath.C_Str());
-                ImageTexture* tex = new ImageTexture(texPath.C_Str());
-                obj.material.normalMap = tex;
+                obj.material.normalMap = loadTextureFromPath(prefix, filePath, scene);
             }
         } else {
             normalMap = false;
@@ -256,8 +274,10 @@ int main()
     Cubemap skybox("../res/newport/_posy.hdr", "../res/newport/_negy.hdr", "../res/newport/_negx.hdr", "../res/newport/_posx.hdr", "../res/newport/_negz.hdr", "../res/newport/_posz.hdr");
 
     renderer.setSkybox(&skybox);
+    // std::vector<Object> objects = loadFile("../res/Avocado.glb");
 	std::vector<Object> objects = loadFile("../meshes/FlightHelmet/FlightHelmet.gltf");
 	// std::vector<Object> objects = loadFile("../meshes/Suzanne2.gltf");
+    // std::vector<Object> objects = loadFile("../meshes/DamagedHelmet.glb");
 
 
     double lastCursorX, lastCursorY;
