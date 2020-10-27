@@ -28,6 +28,9 @@
 
 #define DBG_MODE 1
 
+const unsigned int WIDTH = 800;
+const unsigned int HEIGHT = 450;
+
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     Camera* camera = static_cast<Camera*>(glfwGetWindowUserPointer(window));
@@ -48,7 +51,7 @@ GLFWwindow* initWindow()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint( GLFW_OPENGL_DEBUG_CONTEXT, true );
 
-    GLFWwindow* window = glfwCreateWindow(800, 450, "Real-time rendering", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Real-time rendering", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -245,8 +248,12 @@ std::vector<Object> loadFile(std::string path)
     return res;
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    if (argc < 2) {
+        printf("Usage: %s <glTF file>\n", argv[0]);
+        return 1;
+    }
     GLFWwindow* window = initWindow();
     if (!window)
     {
@@ -270,14 +277,11 @@ int main()
     glfwSetWindowUserPointer(window, &camera);
 
 
-	Renderer renderer;
+	Renderer renderer(WIDTH, HEIGHT);
     Cubemap skybox("../res/newport/_posy.hdr", "../res/newport/_negy.hdr", "../res/newport/_negx.hdr", "../res/newport/_posx.hdr", "../res/newport/_negz.hdr", "../res/newport/_posz.hdr");
 
     renderer.setSkybox(&skybox);
-    // std::vector<Object> objects = loadFile("../res/Avocado.glb");
-	std::vector<Object> objects = loadFile("../meshes/FlightHelmet/FlightHelmet.gltf");
-	// std::vector<Object> objects = loadFile("../meshes/Suzanne2.gltf");
-    // std::vector<Object> objects = loadFile("../meshes/DamagedHelmet.glb");
+	std::vector<Object> objects = loadFile(argv[1]);
 
 
     double lastCursorX, lastCursorY;

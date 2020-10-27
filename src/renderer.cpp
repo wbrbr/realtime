@@ -106,8 +106,9 @@ unsigned int createSkyboxVAO()
 	return vao;
 }
 
-Renderer::Renderer(): deferred_program("../shaders/deferred.vert", "../shaders/deferred.frag"),
-					  final_program("../shaders/final.vert", "../shaders/final.frag"),
+Renderer::Renderer(unsigned int width, unsigned int height): 
+                      deferred_program("../shaders/deferred.vert", "../shaders/deferred.frag"),
+                      final_program("../shaders/final.vert", "../shaders/final.frag"),
 					  ssao_program("../shaders/final.vert", "../shaders/ssao.frag"),
 					  draw_program("../shaders/final.vert", "../shaders/draw.frag"),
 					  skybox_program("../shaders/skybox.vert", "../shaders/skybox.frag"),
@@ -115,15 +116,15 @@ Renderer::Renderer(): deferred_program("../shaders/deferred.vert", "../shaders/d
 					  irradiance("../res/newport/irr_posy.hdr", "../res/newport/irr_negy.hdr", "../res/newport/irr_negx.hdr", "../res/newport/irr_posx.hdr", "../res/newport/irr_negz.hdr", "../res/newport/irr_posz.hdr") {
 	glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-	albedo = create_texture(800, 450, GL_RGB32F, GL_RGB);
+	albedo = create_texture(width, height, GL_RGB32F, GL_RGB);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, albedo, 0);
-	normal_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
+	normal_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normal_tex, 0);
-	rough_met_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
+	rough_met_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, rough_met_tex, 0);
-	position_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
+	position_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, position_tex, 0);
-	depth_texture = create_texture(800, 450, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
+	depth_texture = create_texture(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture, 0);
 	unsigned int attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
 	glDrawBuffers(4, attachments);
@@ -131,21 +132,21 @@ Renderer::Renderer(): deferred_program("../shaders/deferred.vert", "../shaders/d
 
 	glGenFramebuffers(1, &ssao_fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, ssao_fbo);
-	ssao_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
+	ssao_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssao_tex, 0);
 	glDrawBuffers(1, attachments);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	glGenFramebuffers(1, &final_fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, final_fbo);
-	final_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
+	final_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, final_tex, 0);
 	glDrawBuffers(1, attachments);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	glGenFramebuffers(1, &skybox_fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, skybox_fbo);
-	skybox_tex = create_texture(800, 450, GL_RGB32F, GL_RGB);
+	skybox_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, skybox_tex, 0);
 	glDrawBuffers(1, attachments);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

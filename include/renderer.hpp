@@ -7,7 +7,7 @@
 
 class Renderer {
 public:
-	Renderer();
+	Renderer(unsigned int width, unsigned int height);
 	void render(std::vector<Object> objects, Camera cam);
 	void setSkybox(Cubemap* skybox);
 
