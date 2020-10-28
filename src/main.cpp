@@ -2,6 +2,7 @@
 #include "GLFW/glfw3.h"
 #include "stb_image.h"
 #include <iostream>
+#include <algorithm>
 #include <filesystem>
 #include <cassert>
 #include "assimp/Importer.hpp"
@@ -28,8 +29,8 @@
 
 #define DBG_MODE 1
 
-const unsigned int WIDTH = 800;
-const unsigned int HEIGHT = 450;
+const unsigned int WIDTH = 1600;
+const unsigned int HEIGHT = 900;
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
@@ -101,7 +102,9 @@ ImageTexture* loadTextureFromPath(aiString prefix, aiString fileName, const aiSc
     {
         aiString texPath = prefix;
         texPath.Append(fileName.C_Str());
-        return new ImageTexture(texPath.C_Str());
+        std::string p{texPath.C_Str()};
+        std::replace(p.begin(), p.end(), '\\', '/');
+        return new ImageTexture(p.c_str());
     }
 }
 
@@ -194,18 +197,26 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index)
     aiString filePath;
     if (scene->HasMaterials()) {
         aiMaterial* material = scene->mMaterials[m->mMaterialIndex];
-        material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &filePath);
+        std::cout << material->GetTextureCount(aiTextureType_DIFFUSE);
+        material->GetTexture(aiTextureType_DIFFUSE, 0, &filePath);
         aiString texPath(prefix);
         if (filePath.length > 0) {
             obj.material.albedoMap = loadTextureFromPath(prefix, filePath, scene);
         } else {
             std::cerr << "no baseColor texture" << std::endl;
+            unsigned char color[] = { 255, 0, 255, 255 };
+            ImageTexture* tex = new ImageTexture(color, 1, 1);
+            obj.material.albedoMap = tex;
         }
         material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &filePath);
         if (filePath.length > 0) {
             obj.material.roughnessMetallicMap = loadTextureFromPath(prefix, filePath, scene);
         } else {
             std::cerr << "no roughness/metallic texture" << std::endl;
+            // roughness = 1, metallic = 0
+            unsigned char color[] = { 0, 255, 0, 255 };
+            ImageTexture* tex = new ImageTexture(color, 1, 1);
+            obj.material.roughnessMetallicMap = tex;
         }
         texPath = prefix;
         bool normalMap = true;
@@ -220,7 +231,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index)
             normalMap = false;
         }
         if (!normalMap) {
-            std::cout << "no normal map" << std::endl;
+            std::cerr << "no normal map" << std::endl;
             unsigned char color[] = { 128, 128, 255, 255 };
             ImageTexture* tex = new ImageTexture(color, 1, 1);
             obj.material.normalMap = tex;
