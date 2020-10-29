@@ -304,6 +304,8 @@ int main(int argc, char** argv)
     float polar = 0.f; // [-pi/2, pi/2]
     float azim = 0.f; // [0, 2pi]
     glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
+
+    float walkSpeed = .8f;
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
@@ -330,7 +332,8 @@ int main(int argc, char** argv)
 
         glm::vec3 up(0.f, 1.f, 0.f);
         glm::vec3 right = glm::cross(dir, up);
-        const float walkSpeed = .8f;
+        ImGui::Begin("Renderer");
+        ImGui::SliderFloat("Walk speed", &walkSpeed, 0.01f, 0.8f);
         const float speed = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? 3.f * walkSpeed : walkSpeed;
         if (flyMode && !imio.WantCaptureKeyboard) {
             if (glfwGetKey(window, GLFW_KEY_A)) {
@@ -356,7 +359,6 @@ int main(int argc, char** argv)
         camera.setTarget(camera.getPosition() + dir);
 
         // FINAL DRAW
-        ImGui::Begin("Renderer");
 		renderer.render(objects, camera);
         ImGui::Text("FPS: %.1f", imio.Framerate);
         ImGui::End();

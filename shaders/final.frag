@@ -10,13 +10,19 @@ uniform sampler2D positiontex;
 uniform sampler2D ssaotex;
 uniform samplerCube irradianceMap;
 
+uniform struct PointLight {
+    vec3 position;
+    vec3 color;
+} pointLights[32];
+
+uniform int pointLightsNum;
+
+uniform struct DirectionalLight {
+    vec3 dir;
+    vec3 color;
+} sunLight;
 
 uniform vec3 camPos;
-uniform vec3 lightPos;
-uniform float lightStrength;
-
-uniform vec3 lightDir;
-uniform vec3 lightColor;
 
 const float WIDTH = 800.0;
 const float HEIGHT = 450.0;
@@ -95,14 +101,17 @@ void main()
     if (opacity < .5) discard;
 
     vec3 L0 = vec3(0.0);
+    
+    for (int i = 0; i < pointLightsNum; i++)
+    {
+        vec3 L = normalize(pointLights[i].position - position);
+        float dist = length(pointLights[i].position - position);
+        float attenuation = 1.0 / (dist*dist);
+        vec3 radiance = pointLights[i].color * attenuation;
+        L0 += shade(N, V, L, albedo, roughness, metallic) * radiance;
+    }
 
-    vec3 L = normalize(lightPos - position);
-    float dist = length(lightPos-position);
-    float attenuation = 1.0 / (dist*dist);
-    vec3 radiance = vec3(lightStrength) * attenuation;
-
-    L0 += shade(N, V, L, albedo, roughness, metallic) * radiance;
-    L0 += shade(N, V, -lightDir, albedo, roughness, metallic) * lightColor;
+    L0 += shade(N, V, -sunLight.dir, albedo, roughness, metallic) * sunLight.color;
 
     // ambient lighting (env map)
     vec3 irradiance = texture(irradianceMap, N).rgb;

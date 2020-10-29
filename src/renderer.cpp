@@ -235,10 +235,15 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 	}
 	
-	glUseProgram(final_program.id());
 	static float lightPos[3] = {4.f, 1.f, 6.f };
 	ImGui::DragFloat3("Light position", lightPos, 0.001f, -10.f, 10.f);
-	glUniform3f(final_program.getLoc("lightPos"), 1.f, 1.f, 1.f);
+	static float lightColor[3] = {1.f, 1.f, 1.f};
+	ImGui::DragFloat3("Light color", lightColor, 0.001f, 0.f, 2.f);
+
+	glUseProgram(final_program.id());
+	glUniform1i(final_program.getLoc("pointLightsNum"), 1);
+	glUniform3fv(final_program.getLoc("pointLights[0].position"), 1, lightPos);
+	glUniform3fv(final_program.getLoc("pointLights[0].color"), 1, lightColor);
 	glUniform3f(final_program.getLoc("camPos"), camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
 	glUniform1i(final_program.getLoc("albedotex"), 0);
 	glUniform1i(final_program.getLoc("normaltex"), 1);
@@ -247,12 +252,9 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glUniform1i(final_program.getLoc("positiontex"), 4);
 	glUniform1i(final_program.getLoc("ssaotex"), 5);
 	glUniform1i(final_program.getLoc("irradianceMap"), 6);
-	static float lightStrength = 1.f;
-	ImGui::DragFloat("Light strength", &lightStrength, 0.01f, 0.f, 10.f);
-	glUniform1f(final_program.getLoc("lightStrength"), lightStrength);
 	glm::vec3 lightDir = glm::normalize(glm::vec3(.5f, -1.f, -0.1f));
-	glUniform3f(final_program.getLoc("lightDir"), lightDir.x, lightDir.y, lightDir.z);
-	glUniform3f(final_program.getLoc("lightColor"), 1.f, 1.f, 1.f);
+	glUniform3f(final_program.getLoc("sunLight.dir"), lightDir.x, lightDir.y, lightDir.z);
+	glUniform3f(final_program.getLoc("sunLight.color"), 1.f, 1.f, 1.f);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, albedo);
