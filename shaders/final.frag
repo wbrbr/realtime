@@ -23,6 +23,9 @@ uniform struct DirectionalLight {
 } sunLight;
 
 uniform vec3 camPos;
+uniform mat4 lightSpaceMatrix;
+
+uniform float ambientIntensity;
 
 const float WIDTH = 800.0;
 const float HEIGHT = 450.0;
@@ -87,6 +90,17 @@ vec3 shade(vec3 N, vec3 V, vec3 L, vec3 albedo, float roughness, float metallic)
     return (kD*albedo / PI + specular) * NdotL;
 }
 
+float shadow(vec3 position)
+{
+    vec4 lightSpacePos = lightSpaceMatrix * vec4(position, 1.);
+    vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
+    projCoords = projCoords * .5 + .5;
+    float depth = projCoords.z;
+    float closestDepth = texture(depthtex, projCoords.xy).r;
+
+    return depth <= closestDepth + 0.00001 ? 1.0 : 0.0;
+}
+
 void main()
 {
     vec3 N = texture(normaltex, TexCoords).rgb;
@@ -111,13 +125,13 @@ void main()
         L0 += shade(N, V, L, albedo, roughness, metallic) * radiance;
     }
 
-    L0 += shade(N, V, -sunLight.dir, albedo, roughness, metallic) * sunLight.color;
+    L0 += shade(N, V, -sunLight.dir, albedo, roughness, metallic) * sunLight.color * shadow(position);
 
     // ambient lighting (env map)
     vec3 irradiance = texture(irradianceMap, N).rgb;
-    vec3 diffuse = irradiance * albedo; // TODO: * ao
+    vec3 diffuse = irradiance * albedo;
     // vec3 kD = vec3(1.) - max(fresnelShlick(dot(N, V), F0), 0);
-    vec3 ambient = ssao * diffuse * (1. - metallic);
+    vec3 ambient = ssao * diffuse * (1. - metallic) * ambientIntensity;
 
     vec3 color = L0 + ambient;
     color = color / (color + vec3(1.));

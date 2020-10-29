@@ -17,10 +17,12 @@ private:
 	Shader ssao_program;
 	Shader draw_program;
 	Shader skybox_program;
-	unsigned int fbo, albedo, normal_tex, rough_met_tex, position_tex, depth_texture, ssao_tex, noise_tex, final_tex, skybox_tex;
+	Shader depth_program;
+	unsigned int fbo, albedo, normal_tex, rough_met_tex, position_tex, depth_texture, ssao_tex, noise_tex, final_tex, skybox_tex, directional_depth_tex;
 	unsigned int ssao_fbo;
 	unsigned int final_fbo;
 	unsigned int skybox_fbo;
+	unsigned int directional_depth_fbo;
 
 	unsigned int cube_vao;
 	std::vector<glm::vec3> ssao_samples;

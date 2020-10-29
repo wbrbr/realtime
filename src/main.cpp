@@ -84,7 +84,7 @@ GLFWwindow* initWindow()
 
 void dbgcallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *msg, const void *data)
 {
-    if (DBG_MODE) {
+    if (DBG_MODE && type == GL_DEBUG_TYPE_ERROR) {
         std::cout << "debug call: " << msg << std::endl;
     }
 }
@@ -284,7 +284,9 @@ int main(int argc, char** argv)
     ImGui_ImplOpenGL3_Init(glsl_version);
     ImGuiIO& imio = ImGui::GetIO();
 
-    // glDebugMessageCallback(dbgcallback, NULL);
+#if DBG_MODE
+    glDebugMessageCallback(dbgcallback, NULL);
+#endif
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 

@@ -1,6 +1,8 @@
 #include "renderer.hpp"
 #include "../include/GL/gl3w.h"
 #include "glm/gtc/type_ptr.hpp"
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include <random>
 #include <iostream>
 #include "imgui.h"
@@ -113,6 +115,7 @@ Renderer::Renderer(unsigned int width, unsigned int height):
 					  ssao_program("../shaders/final.vert", "../shaders/ssao.frag"),
 					  draw_program("../shaders/final.vert", "../shaders/draw.frag"),
 					  skybox_program("../shaders/skybox.vert", "../shaders/skybox.frag"),
+					  depth_program("../shaders/depth.vert", "../shaders/depth.frag"),
 					  skybox(nullptr),
 					  irradiance("../res/newport/irr_posy.hdr", "../res/newport/irr_negy.hdr", "../res/newport/irr_negx.hdr", "../res/newport/irr_posx.hdr", "../res/newport/irr_negz.hdr", "../res/newport/irr_posz.hdr") {
 	glGenFramebuffers(1, &fbo);
@@ -155,10 +158,21 @@ Renderer::Renderer(unsigned int width, unsigned int height):
 	noise_tex = createNoiseTexture();
 	setupSamples(ssao_samples);
 
+	directional_depth_tex = create_texture(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
+
+	glGenFramebuffers(1, &directional_depth_fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, directional_depth_fbo);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, directional_depth_tex, 0);
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	cube_vao = createSkyboxVAO();
 }
 
 void Renderer::render(std::vector<Object> objects, Camera camera) {
+
+	glm::vec3 lightDir = glm::normalize(glm::vec3(.5f, -1.f, -0.1f));
 
 	// === GEOMETRY PASS ===
 	glEnable(GL_DEPTH_TEST);
@@ -186,8 +200,33 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 		glDrawElements(GL_TRIANGLES, obj.mesh.numIndices, GL_UNSIGNED_INT, (void*)0);
 	}
 	
-	glDisable(GL_DEPTH_TEST);
+	// === DIRECTIONAL SHADOW MAP PASS ===
+	glBindFramebuffer(GL_FRAMEBUFFER, directional_depth_fbo);
+	glClear(GL_DEPTH_BUFFER_BIT);
+	static float zFar = 2000.f;
+	static float zNear = 0.1f;
+	static float planeWidth = 1.f;
+	static float planeHeight = 1.f;
+	ImGui::DragFloat("Near plane", &zNear);
+	ImGui::DragFloat("Far plane", &zFar);
+	ImGui::DragFloat("Plane width", &planeWidth);
+	ImGui::DragFloat("Plane height", &planeHeight);
+	glm::mat4 lightProjection = glm::ortho(-planeWidth, planeWidth, -planeHeight, planeHeight, zNear, zFar);
+	glm::mat4 lightView = glm::lookAt(-100.f*lightDir, lightDir, glm::vec3(0.f, 1.f, 0.f));
+	glm::mat4 lightMatrix = lightProjection * lightView;
 
+	glUseProgram(depth_program.id());
+
+	glUniformMatrix4fv(depth_program.getLoc("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightMatrix));
+
+	for (auto obj : objects) {
+		glBindVertexArray(obj.mesh.vao);
+		glUniformMatrix4fv(depth_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(obj.transform.getMatrix()));
+		glDrawElements(GL_TRIANGLES, obj.mesh.numIndices, GL_UNSIGNED_INT, (void*)0);
+	}
+
+
+	glDisable(GL_DEPTH_TEST);
 	// === SSAO PASS ===
 	glBindFramebuffer(GL_FRAMEBUFFER, ssao_fbo);
 	// glClearColor(1., 1., 1., 1.);
@@ -239,6 +278,8 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	ImGui::DragFloat3("Light position", lightPos, 0.001f, -10.f, 10.f);
 	static float lightColor[3] = {1.f, 1.f, 1.f};
 	ImGui::DragFloat3("Light color", lightColor, 0.001f, 0.f, 2.f);
+	static float ambientIntensity = 1.f;
+	ImGui::DragFloat("Ambient intensity", &ambientIntensity);
 
 	glUseProgram(final_program.id());
 	glUniform1i(final_program.getLoc("pointLightsNum"), 1);
@@ -252,16 +293,19 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glUniform1i(final_program.getLoc("positiontex"), 4);
 	glUniform1i(final_program.getLoc("ssaotex"), 5);
 	glUniform1i(final_program.getLoc("irradianceMap"), 6);
-	glm::vec3 lightDir = glm::normalize(glm::vec3(.5f, -1.f, -0.1f));
 	glUniform3f(final_program.getLoc("sunLight.dir"), lightDir.x, lightDir.y, lightDir.z);
 	glUniform3f(final_program.getLoc("sunLight.color"), 1.f, 1.f, 1.f);
+	glUniform1f(final_program.getLoc("zNear"), zNear);
+	glUniform1f(final_program.getLoc("zFar"), zFar);
+	glUniformMatrix4fv(final_program.getLoc("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightMatrix));
+	glUniform1f(final_program.getLoc("ambientIntensity"), ambientIntensity);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, albedo);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, normal_tex);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, depth_texture);
+	glBindTexture(GL_TEXTURE_2D, directional_depth_tex);
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, rough_met_tex);
 	glActiveTexture(GL_TEXTURE4);
@@ -279,9 +323,9 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	// glClearColor(0.f, 0.f, 0.f, 1.f);
 	// glClear(GL_COLOR_BUFFER_BIT);
 	glActiveTexture(GL_TEXTURE0);
-	const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao", "skybox"};
+	const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao", "skybox", "sunlight shadow map"};
 	static int current = 0;
-	ImGui::Combo("Display", &current, items, 8);
+	ImGui::Combo("Display", &current, items, 9);
 	unsigned int display_tex = 0;
 	switch (current) {
 		case 0: display_tex = final_tex; break;
@@ -292,6 +336,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 		case 5: display_tex = position_tex; break;
 		case 6: display_tex = ssao_tex; break;
 		case 7: display_tex = skybox_tex; break;
+		case 8: display_tex = directional_depth_tex; break;
 	}
 	glBindTexture(GL_TEXTURE_2D, display_tex);
 	glDrawArrays(GL_TRIANGLES, 0, 3);
