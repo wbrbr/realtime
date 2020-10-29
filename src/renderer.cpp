@@ -250,6 +250,9 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	static float lightStrength = 1.f;
 	ImGui::DragFloat("Light strength", &lightStrength, 0.01f, 0.f, 10.f);
 	glUniform1f(final_program.getLoc("lightStrength"), lightStrength);
+	glm::vec3 lightDir = glm::normalize(glm::vec3(.5f, -1.f, -0.1f));
+	glUniform3f(final_program.getLoc("lightDir"), lightDir.x, lightDir.y, lightDir.z);
+	glUniform3f(final_program.getLoc("lightColor"), 1.f, 1.f, 1.f);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, albedo);

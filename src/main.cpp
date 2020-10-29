@@ -311,31 +311,6 @@ int main(int argc, char** argv)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        /* if (currentState == GLFW_PRESS) {
-            double currentX, currentY;
-            glfwGetCursorPos(window, &currentX, &currentY);
-
-            if (lastState == GLFW_PRESS) {
-                float xdelta = currentX - lastCursorX;
-                float ydelta = currentY - lastCursorY;
-                glm::vec3 pos = camera.getPosition();
-                glm::vec3 right = glm::normalize(glm::cross(camera.getTarget() - camera.getPosition(), glm::vec3(0.f, 1.f, 0.f)));
-                glm::vec3 notup = glm::cross(right, glm::normalize(camera.getTarget() - camera.getPosition()));
-
-                if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) { // translation
-                    glm::vec3 translation = 0.001f * (xdelta * right + ydelta * notup);
-                    camera.setPosition(pos + translation);
-                    camera.setTarget(camera.getTarget() + translation);
-                } else { // rotation
-                    pos = glm::rotateY(pos, -0.005f * xdelta);
-                    pos = glm::rotate(pos, -0.005f * ydelta, right);
-                    camera.setPosition(pos);
-                }
-            }
-            lastCursorX = currentX;
-            lastCursorY = currentY;
-        } */
-
         double currentX, currentY;
         glfwGetCursorPos(window, &currentX, &currentY);
         float xdelta = currentX - lastCursorX;
@@ -355,25 +330,26 @@ int main(int argc, char** argv)
 
         glm::vec3 up(0.f, 1.f, 0.f);
         glm::vec3 right = glm::cross(dir, up);
-        const float walkSpeed = 0.8f;
-        if (!imio.WantCaptureKeyboard) {
+        const float walkSpeed = .8f;
+        const float speed = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? 3.f * walkSpeed : walkSpeed;
+        if (flyMode && !imio.WantCaptureKeyboard) {
             if (glfwGetKey(window, GLFW_KEY_A)) {
-                camera.setPosition(camera.getPosition() - walkSpeed * right);
+                camera.setPosition(camera.getPosition() - speed * right);
             }
             if (glfwGetKey(window, GLFW_KEY_D)) {
-                camera.setPosition(camera.getPosition() + walkSpeed * right);
+                camera.setPosition(camera.getPosition() + speed * right);
             }
             if (glfwGetKey(window, GLFW_KEY_W)) {
-                camera.setPosition(camera.getPosition() + walkSpeed * dir);
+                camera.setPosition(camera.getPosition() + speed * dir);
             }
             if (glfwGetKey(window, GLFW_KEY_S)) {
-                camera.setPosition(camera.getPosition() - walkSpeed * dir);
+                camera.setPosition(camera.getPosition() - speed * dir);
             }
             if (glfwGetKey(window, GLFW_KEY_SPACE)) {
-                camera.setPosition(camera.getPosition() + walkSpeed * up);
+                camera.setPosition(camera.getPosition() + speed * up);
             }
-            if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
-                camera.setPosition(camera.getPosition() - walkSpeed * up);
+            if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)) {
+                camera.setPosition(camera.getPosition() - speed * up);
             }
         }
 

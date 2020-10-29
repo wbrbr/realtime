@@ -15,6 +15,9 @@ uniform vec3 camPos;
 uniform vec3 lightPos;
 uniform float lightStrength;
 
+uniform vec3 lightDir;
+uniform vec3 lightColor;
+
 const float WIDTH = 800.0;
 const float HEIGHT = 450.0;
 
@@ -59,28 +62,10 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
     return ggx1 * ggx2;
 }
 
-void main()
+vec3 shade(vec3 N, vec3 V, vec3 L, vec3 albedo, float roughness, float metallic)
 {
-    vec3 N = texture(normaltex, TexCoords).rgb;
-    vec3 position = texture(positiontex, TexCoords).rgb;
-    vec3 V = normalize(camPos - position);
-    vec3 albedo = texture(albedotex, TexCoords).rgb;
-    float roughness = texture(roughmettex, TexCoords).g;
-    float metallic = texture(roughmettex, TexCoords).b;
-    float opacity = texture(roughmettex, TexCoords).r;
-    float ssao = texture(ssaotex, TexCoords).r;
-
-    if (opacity < .5) discard;
     vec3 F0 = mix(vec3(0.04), albedo, metallic); 
-
-    vec3 L0 = vec3(0.0);
-
-    vec3 L = normalize(lightPos - position);
     vec3 H = normalize(V+L);
-    float dist = length(lightPos-position);
-    float attenuation = 1.0 / (dist*dist);
-    vec3 radiance = vec3(lightStrength) * attenuation;
-
     float NDF = DistributionGGX(N, H, roughness);
     float G = GeometrySmith(N, V, L, roughness);
     vec3 F = fresnelShlick(min(max(dot(H, V), 0.0), 1.0), F0);
@@ -93,13 +78,37 @@ void main()
     kD *= (1.0 - metallic);
 
     float NdotL = max(dot(N, L), 0.0);
-    L0 += (kD * albedo / PI + specular) * radiance * NdotL;
+    return (kD*albedo / PI + specular) * NdotL;
+}
+
+void main()
+{
+    vec3 N = texture(normaltex, TexCoords).rgb;
+    vec3 position = texture(positiontex, TexCoords).rgb;
+    vec3 V = normalize(camPos - position);
+    vec3 albedo = texture(albedotex, TexCoords).rgb;
+    float roughness = texture(roughmettex, TexCoords).g;
+    float metallic = texture(roughmettex, TexCoords).b;
+    float opacity = texture(roughmettex, TexCoords).r;
+    float ssao = texture(ssaotex, TexCoords).r;
+
+    if (opacity < .5) discard;
+
+    vec3 L0 = vec3(0.0);
+
+    vec3 L = normalize(lightPos - position);
+    float dist = length(lightPos-position);
+    float attenuation = 1.0 / (dist*dist);
+    vec3 radiance = vec3(lightStrength) * attenuation;
+
+    L0 += shade(N, V, L, albedo, roughness, metallic) * radiance;
+    L0 += shade(N, V, -lightDir, albedo, roughness, metallic) * lightColor;
 
     // ambient lighting (env map)
     vec3 irradiance = texture(irradianceMap, N).rgb;
     vec3 diffuse = irradiance * albedo; // TODO: * ao
-    kD = vec3(1.) - max(fresnelShlick(dot(N, V), F0), 0);
-    vec3 ambient = diffuse * (1. - metallic);
+    // vec3 kD = vec3(1.) - max(fresnelShlick(dot(N, V), F0), 0);
+    vec3 ambient = ssao * diffuse * (1. - metallic);
 
     vec3 color = L0 + ambient;
     color = color / (color + vec3(1.));
