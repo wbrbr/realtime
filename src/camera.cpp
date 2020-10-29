@@ -13,7 +13,7 @@ glm::mat4 Camera::getViewMatrix()
 
 glm::mat4 Camera::getPerspectiveMatrix()
 {
-    return glm::perspective(glm::radians(60.f), 16.f/9.f, 0.1f, 5.f);
+    return glm::perspective(glm::radians(60.f), 16.f/9.f, 0.1f, 2000.f);
 }
 
 void Camera::setPosition(glm::vec3 v)
@@ -40,4 +40,5 @@ void Camera::updateMatrix()
 void Camera::setTarget(glm::vec3 v)
 {
     target = v;
+    updateMatrix();
 }

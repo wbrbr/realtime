@@ -2,6 +2,7 @@
 #include "../include/GL/gl3w.h"
 #include "glm/gtc/type_ptr.hpp"
 #include <random>
+#include <iostream>
 #include "imgui.h"
 
 unsigned int createNoiseTexture()
@@ -235,7 +236,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	}
 	
 	glUseProgram(final_program.id());
-	static float lightPos[3] = {1.f, 1.f, 1.f};
+	static float lightPos[3] = {4.f, 1.f, 6.f };
 	ImGui::DragFloat3("Light position", lightPos, 0.001f, -10.f, 10.f);
 	glUniform3f(final_program.getLoc("lightPos"), 1.f, 1.f, 1.f);
 	glUniform3f(final_program.getLoc("camPos"), camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);

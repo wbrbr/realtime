@@ -32,12 +32,18 @@
 const unsigned int WIDTH = 1600;
 const unsigned int HEIGHT = 900;
 
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+bool flyMode = true;
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    Camera* camera = static_cast<Camera*>(glfwGetWindowUserPointer(window));
-    float r = glm::length(camera->getPosition());
-    float r2 = r - 0.08f * yoffset;
-    camera->setPosition(r2 / r * camera->getPosition());
+    if (key == GLFW_KEY_F && action == GLFW_RELEASE) {
+        flyMode = !flyMode;
+        if (flyMode) {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        } else {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+    }
 }
 
 GLFWwindow* initWindow()
@@ -58,8 +64,8 @@ GLFWwindow* initWindow()
         glfwTerminate();
         return nullptr;
     }
-    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetScrollCallback(window, scroll_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetKeyCallback(window, key_callback);
     glfwMakeContextCurrent(window);
 
     if (gl3wInit())
@@ -197,7 +203,6 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index)
     aiString filePath;
     if (scene->HasMaterials()) {
         aiMaterial* material = scene->mMaterials[m->mMaterialIndex];
-        std::cout << material->GetTextureCount(aiTextureType_DIFFUSE);
         material->GetTexture(aiTextureType_DIFFUSE, 0, &filePath);
         aiString texPath(prefix);
         if (filePath.length > 0) {
@@ -296,7 +301,8 @@ int main(int argc, char** argv)
 
 
     double lastCursorX, lastCursorY;
-    int lastState = GLFW_RELEASE;
+    float polar = 0.f; // [-pi/2, pi/2]
+    float azim = 0.f; // [0, 2pi]
     glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
     while (!glfwWindowShouldClose(window))
     {
@@ -304,29 +310,11 @@ int main(int argc, char** argv)
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        if (!imio.WantCaptureKeyboard) {
-            if (glfwGetKey(window, GLFW_KEY_A)) {
-                camera.setPosition(glm::rotateY(camera.getPosition(), -0.01f));
-            }
-            if (glfwGetKey(window, GLFW_KEY_D)) {
-                camera.setPosition(glm::rotateY(camera.getPosition(), 0.01f));
-            }
-            if (glfwGetKey(window, GLFW_KEY_W)) {
-                float r = glm::length(camera.getPosition());
-                float r2 = r - 0.01f;
-                camera.setPosition(r2/r * camera.getPosition());
-            }
-            if (glfwGetKey(window, GLFW_KEY_S)) {
-                float r = glm::length(camera.getPosition());
-                float r2 = r + 0.01f;
-                camera.setPosition(r2/r * camera.getPosition());
-            }
-        }
 
-        int currentState = imio.WantCaptureMouse ? GLFW_RELEASE : glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
-        if (currentState == GLFW_PRESS) {
+        /* if (currentState == GLFW_PRESS) {
             double currentX, currentY;
             glfwGetCursorPos(window, &currentX, &currentY);
+
             if (lastState == GLFW_PRESS) {
                 float xdelta = currentX - lastCursorX;
                 float ydelta = currentY - lastCursorY;
@@ -346,8 +334,50 @@ int main(int argc, char** argv)
             }
             lastCursorX = currentX;
             lastCursorY = currentY;
+        } */
+
+        double currentX, currentY;
+        glfwGetCursorPos(window, &currentX, &currentY);
+        float xdelta = currentX - lastCursorX;
+        float ydelta = currentY - lastCursorY;
+        lastCursorX = currentX;
+        lastCursorY = currentY;
+
+        float sensitivity = 0.001;
+        if (flyMode) {
+            azim += -xdelta * sensitivity;
+            polar += -ydelta * sensitivity;
         }
-        lastState = currentState;
+        glm::vec3 dir(0.f, 0.f, -1.f);
+        dir = glm::rotateX(dir, polar);
+        dir = glm::rotateY(dir, azim);
+        dir = glm::normalize(dir);
+
+        glm::vec3 up(0.f, 1.f, 0.f);
+        glm::vec3 right = glm::cross(dir, up);
+        const float walkSpeed = 0.8f;
+        if (!imio.WantCaptureKeyboard) {
+            if (glfwGetKey(window, GLFW_KEY_A)) {
+                camera.setPosition(camera.getPosition() - walkSpeed * right);
+            }
+            if (glfwGetKey(window, GLFW_KEY_D)) {
+                camera.setPosition(camera.getPosition() + walkSpeed * right);
+            }
+            if (glfwGetKey(window, GLFW_KEY_W)) {
+                camera.setPosition(camera.getPosition() + walkSpeed * dir);
+            }
+            if (glfwGetKey(window, GLFW_KEY_S)) {
+                camera.setPosition(camera.getPosition() - walkSpeed * dir);
+            }
+            if (glfwGetKey(window, GLFW_KEY_SPACE)) {
+                camera.setPosition(camera.getPosition() + walkSpeed * up);
+            }
+            if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
+                camera.setPosition(camera.getPosition() - walkSpeed * up);
+            }
+        }
+
+        camera.setTarget(camera.getPosition() + dir);
 
         // FINAL DRAW
         ImGui::Begin("Renderer");
