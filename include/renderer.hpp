@@ -18,6 +18,7 @@ private:
 	Shader draw_program;
 	Shader skybox_program;
 	Shader depth_program;
+	Shader draw_depth_program;
 	unsigned int fbo, albedo, normal_tex, rough_met_tex, position_tex, depth_texture, ssao_tex, noise_tex, final_tex, skybox_tex, directional_depth_tex;
 	unsigned int ssao_fbo;
 	unsigned int final_fbo;

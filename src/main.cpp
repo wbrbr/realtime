@@ -374,7 +374,7 @@ int main(int argc, char** argv)
         glBindTexture(GL_TEXTURE_CUBE_MAP, 0); */
 
         // === IMGUI ===
-        // ImGui::ShowDemoWindow();
+        ImGui::ShowDemoWindow();
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 

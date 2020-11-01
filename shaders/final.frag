@@ -26,6 +26,7 @@ uniform vec3 camPos;
 uniform mat4 lightSpaceMatrix;
 
 uniform float ambientIntensity;
+uniform float shadowBias;
 
 const float WIDTH = 800.0;
 const float HEIGHT = 450.0;
@@ -98,7 +99,7 @@ float shadow(vec3 position)
     float depth = projCoords.z;
     float closestDepth = texture(depthtex, projCoords.xy).r;
 
-    return depth <= closestDepth + 0.00001 ? 1.0 : 0.0;
+    return depth <= closestDepth + shadowBias ? 1.0 : 0.0;
 }
 
 void main()

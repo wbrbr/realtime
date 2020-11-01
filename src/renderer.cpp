@@ -116,6 +116,7 @@ Renderer::Renderer(unsigned int width, unsigned int height):
 					  draw_program("../shaders/final.vert", "../shaders/draw.frag"),
 					  skybox_program("../shaders/skybox.vert", "../shaders/skybox.frag"),
 					  depth_program("../shaders/depth.vert", "../shaders/depth.frag"),
+					  draw_depth_program("../shaders/final.vert", "../shaders/depthdraw.frag"),
 					  skybox(nullptr),
 					  irradiance("../res/newport/irr_posy.hdr", "../res/newport/irr_negy.hdr", "../res/newport/irr_negx.hdr", "../res/newport/irr_posx.hdr", "../res/newport/irr_negz.hdr", "../res/newport/irr_posz.hdr") {
 	glGenFramebuffers(1, &fbo);
@@ -172,7 +173,8 @@ Renderer::Renderer(unsigned int width, unsigned int height):
 
 void Renderer::render(std::vector<Object> objects, Camera camera) {
 
-	glm::vec3 lightDir = glm::normalize(glm::vec3(.5f, -1.f, -0.1f));
+	ImGui::Text("Position: (%f, %f, %f)", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
+	glm::vec3 lightDir = glm::normalize(glm::vec3(0.f, -1.f, 0.f));
 
 	// === GEOMETRY PASS ===
 	glEnable(GL_DEPTH_TEST);
@@ -203,16 +205,27 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	// === DIRECTIONAL SHADOW MAP PASS ===
 	glBindFramebuffer(GL_FRAMEBUFFER, directional_depth_fbo);
 	glClear(GL_DEPTH_BUFFER_BIT);
-	static float zFar = 2000.f;
+	static float zFar = 10.f;
 	static float zNear = 0.1f;
 	static float planeWidth = 1.f;
 	static float planeHeight = 1.f;
-	ImGui::DragFloat("Near plane", &zNear);
-	ImGui::DragFloat("Far plane", &zFar);
-	ImGui::DragFloat("Plane width", &planeWidth);
-	ImGui::DragFloat("Plane height", &planeHeight);
+	static glm::vec3 sunlightPosition(0.f, 10.f, 0.f);
+	if (ImGui::CollapsingHeader("Directional light")) {
+		ImGui::DragFloat3("Position", glm::value_ptr(sunlightPosition));
+		ImGui::DragFloat("Near plane", &zNear);
+		ImGui::DragFloat("Far plane", &zFar);
+		ImGui::DragFloat("Plane width", &planeWidth);
+		ImGui::DragFloat("Plane height", &planeHeight);
+		ImGui::Separator();
+	}
+
+	glm::vec3 up(0.f, 1.f, 0.f);
+	if (glm::length(glm::cross(up, lightDir)) == 0.) {
+		float sg = glm::dot(up, lightDir);
+		up = sg * glm::vec3(0.f, 0.f, -1.f);
+	}
 	glm::mat4 lightProjection = glm::ortho(-planeWidth, planeWidth, -planeHeight, planeHeight, zNear, zFar);
-	glm::mat4 lightView = glm::lookAt(-100.f*lightDir, lightDir, glm::vec3(0.f, 1.f, 0.f));
+	glm::mat4 lightView = glm::lookAt(sunlightPosition, lightDir, up);
 	glm::mat4 lightMatrix = lightProjection * lightView;
 
 	glUseProgram(depth_program.id());
@@ -275,11 +288,17 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	}
 	
 	static float lightPos[3] = {4.f, 1.f, 6.f };
-	ImGui::DragFloat3("Light position", lightPos, 0.001f, -10.f, 10.f);
 	static float lightColor[3] = {1.f, 1.f, 1.f};
-	ImGui::DragFloat3("Light color", lightColor, 0.001f, 0.f, 2.f);
+	if (ImGui::CollapsingHeader("Point light")) {
+		ImGui::ColorEdit3("Light color", lightColor);
+		ImGui::DragFloat3("Light position", lightPos, 0.001f, -10.f, 10.f);
+		ImGui::Separator();
+	}
 	static float ambientIntensity = 1.f;
-	ImGui::DragFloat("Ambient intensity", &ambientIntensity);
+	ImGui::DragFloat("Ambient intensity", &ambientIntensity, 0.01f, 0.f, 2.f);
+	static float shadowBias = 0.001f;
+	ImGui::SliderFloat("Shadow bias", &shadowBias, 0.f, 0.1f, "%.6f", 10.f);
+
 
 	glUseProgram(final_program.id());
 	glUniform1i(final_program.getLoc("pointLightsNum"), 1);
@@ -299,6 +318,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glUniform1f(final_program.getLoc("zFar"), zFar);
 	glUniformMatrix4fv(final_program.getLoc("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightMatrix));
 	glUniform1f(final_program.getLoc("ambientIntensity"), ambientIntensity);
+	glUniform1f(final_program.getLoc("shadowBias"), shadowBias);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, albedo);
@@ -318,11 +338,6 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 
 	// === DRAW TO SCREEN ===
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glUseProgram(draw_program.id());
-	// glClearColor(0.f, 0.f, 0.f, 1.f);
-	// glClear(GL_COLOR_BUFFER_BIT);
-	glActiveTexture(GL_TEXTURE0);
 	const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao", "skybox", "sunlight shadow map"};
 	static int current = 0;
 	ImGui::Combo("Display", &current, items, 9);
@@ -338,7 +353,17 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 		case 7: display_tex = skybox_tex; break;
 		case 8: display_tex = directional_depth_tex; break;
 	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, display_tex);
+	if (current == 8) {
+		glUseProgram(draw_depth_program.id());
+		glUniform1f(draw_depth_program.getLoc("zNear"), zNear);
+		glUniform1f(draw_depth_program.getLoc("zFar"), zFar);
+	} else {	
+		glUseProgram(draw_program.id());
+	}
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
