@@ -12,6 +12,7 @@ public:
 	void setSkybox(Cubemap* skybox);
 
 private:
+	unsigned int width, height;
 	Shader deferred_program;
 	Shader final_program;
 	Shader ssao_program;
@@ -30,5 +31,6 @@ private:
 
 	Cubemap* skybox;
 	Cubemap irradiance;
+
 };
 #endif

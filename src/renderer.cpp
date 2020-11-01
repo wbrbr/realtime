@@ -109,7 +109,9 @@ unsigned int createSkyboxVAO()
 	return vao;
 }
 
-Renderer::Renderer(unsigned int width, unsigned int height): 
+Renderer::Renderer(unsigned int width, unsigned int height):
+				      width(width),
+					  height(height),
                       deferred_program("../shaders/deferred.vert", "../shaders/deferred.frag"),
                       final_program("../shaders/final.vert", "../shaders/final.frag"),
 					  ssao_program("../shaders/final.vert", "../shaders/ssao.frag"),
@@ -159,7 +161,7 @@ Renderer::Renderer(unsigned int width, unsigned int height):
 	noise_tex = createNoiseTexture();
 	setupSamples(ssao_samples);
 
-	directional_depth_tex = create_texture(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
+	directional_depth_tex = create_texture(2048, 2048, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
 
 	glGenFramebuffers(1, &directional_depth_fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, directional_depth_fbo);
@@ -203,6 +205,8 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	}
 	
 	// === DIRECTIONAL SHADOW MAP PASS ===
+	glViewport(0, 0, 2048, 2048);
+	glCullFace(GL_FRONT);
 	glBindFramebuffer(GL_FRAMEBUFFER, directional_depth_fbo);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	static float zFar = 10.f;
@@ -238,6 +242,8 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 		glDrawElements(GL_TRIANGLES, obj.mesh.numIndices, GL_UNSIGNED_INT, (void*)0);
 	}
 
+	glViewport(0, 0, width, height);
+	glCullFace(GL_BACK);
 
 	glDisable(GL_DEPTH_TEST);
 	// === SSAO PASS ===
