@@ -27,6 +27,7 @@
 #include "texture.hpp"
 #include "renderer.hpp"
 #include "TracyOpenGL.hpp"
+#include "texture_loader.hpp"
 
 #define DBG_MODE 1
 
@@ -90,8 +91,9 @@ void dbgcallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei
     }
 }
 
-ImageTexture* loadTextureFromPath(aiString prefix, aiString fileName, const aiScene* scene)
+TexID loadTextureFromPath(aiString prefix, aiString fileName, const aiScene* scene, TextureLoader& loader)
 {
+    ZoneScoped
     // embedded texture
     if (fileName.C_Str()[0] == '*')
     {
@@ -103,7 +105,7 @@ ImageTexture* loadTextureFromPath(aiString prefix, aiString fileName, const aiSc
         {
             std::cerr << "Embedded texture loading failed: " << stbi_failure_reason() << std::endl;
         }
-        return new ImageTexture(data, w, h);
+        return loader.add(std::move(ImageTexture(data,w,h)));
     }
     else
     {
@@ -111,12 +113,13 @@ ImageTexture* loadTextureFromPath(aiString prefix, aiString fileName, const aiSc
         texPath.Append(fileName.C_Str());
         std::string p{texPath.C_Str()};
         std::replace(p.begin(), p.end(), '\\', '/');
-        return new ImageTexture(p.c_str());
+        return loader.add(std::move(ImageTexture(p.c_str())));
     }
 }
 
-Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index)
+Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index, TextureLoader& loader)
 {
+    ZoneScoped
     aiMesh* m = scene->mMeshes[mesh_index];
 
     unsigned int vao, vbo, ebo;
@@ -207,22 +210,20 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index)
         material->GetTexture(aiTextureType_DIFFUSE, 0, &filePath);
         aiString texPath(prefix);
         if (filePath.length > 0) {
-            obj.material.albedoMap = loadTextureFromPath(prefix, filePath, scene);
+            obj.material.albedoMap = loadTextureFromPath(prefix, filePath, scene, loader);
         } else {
             std::cerr << "no baseColor texture" << std::endl;
             unsigned char color[] = { 255, 0, 255, 255 };
-            ImageTexture* tex = new ImageTexture(color, 1, 1);
-            obj.material.albedoMap = tex;
+            obj.material.albedoMap = loader.add(std::move(ImageTexture(color, 1, 1)));
         }
         material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &filePath);
         if (filePath.length > 0) {
-            obj.material.roughnessMetallicMap = loadTextureFromPath(prefix, filePath, scene);
+            obj.material.roughnessMetallicMap = loadTextureFromPath(prefix, filePath, scene, loader);
         } else {
             std::cerr << "no roughness/metallic texture" << std::endl;
             // roughness = 1, metallic = 0
             unsigned char color[] = { 0, 255, 0, 255 };
-            ImageTexture* tex = new ImageTexture(color, 1, 1);
-            obj.material.roughnessMetallicMap = tex;
+            obj.material.roughnessMetallicMap = loader.add(std::move(ImageTexture(color, 1, 1)));
         }
         texPath = prefix;
         bool normalMap = true;
@@ -231,7 +232,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index)
             if (filePath.length == 0) {
                 normalMap = false;
             } else {
-                obj.material.normalMap = loadTextureFromPath(prefix, filePath, scene);
+                obj.material.normalMap = loadTextureFromPath(prefix, filePath, scene, loader);
             }
         } else {
             normalMap = false;
@@ -239,15 +240,15 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index)
         if (!normalMap) {
             std::cerr << "no normal map" << std::endl;
             unsigned char color[] = { 128, 128, 255, 255 };
-            ImageTexture* tex = new ImageTexture(color, 1, 1);
-            obj.material.normalMap = tex;
+            obj.material.normalMap = loader.add(std::move(ImageTexture(color, 1, 1)));
         }
     }
     return obj;
 }
 
-std::vector<Object> loadFile(std::string path)
+std::vector<Object> loadFile(std::string path, TextureLoader& loader)
 {
+    ZoneScoped
     std::vector<Object> res;
 
     Assimp::Importer importer;
@@ -259,7 +260,7 @@ std::vector<Object> loadFile(std::string path)
 
     for (unsigned int i = 0; i < scene->mNumMeshes; i++)
     {
-        res.push_back(loadMesh(path, scene, i));
+        res.push_back(loadMesh(path, scene, i, loader));
     }
 
     return res;
@@ -298,11 +299,13 @@ int main(int argc, char** argv)
     glfwSetWindowUserPointer(window, &camera);
 
 
-	Renderer renderer(WIDTH, HEIGHT);
+    TextureLoader loader;
+	Renderer renderer(WIDTH, HEIGHT, loader);
     Cubemap skybox("../res/newport/_posy.hdr", "../res/newport/_negy.hdr", "../res/newport/_negx.hdr", "../res/newport/_posx.hdr", "../res/newport/_negz.hdr", "../res/newport/_posz.hdr");
 
     renderer.setSkybox(&skybox);
-	std::vector<Object> objects = loadFile(argv[1]);
+    std::vector<ImageTexture> textures;
+	std::vector<Object> objects = loadFile(argv[1], loader);
 
 
     double lastCursorX, lastCursorY;
@@ -363,28 +366,24 @@ int main(int argc, char** argv)
 
         camera.setTarget(camera.getPosition() + dir);
 
-        // FINAL DRAW
 		renderer.render(objects, camera);
         ImGui::Text("FPS: %.1f", imio.Framerate);
         ImGui::End();
 
-        /* glEnable(GL_DEPTH_TEST);
-        glUseProgram(skybox_program.id());
-        glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix())))); // remove the translation
-        glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.id());
-        glBindVertexArray(cube.mesh.vao);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, 0); */
-
-        // === IMGUI ===
         ImGui::ShowDemoWindow();
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        {
+            ZoneScopedN("ImGui render")
+            ImGui::Render();
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        }
 
-        glfwSwapBuffers(window);
+        {
+
+            ZoneScopedN("Buffer swap")
+            glfwSwapBuffers(window);
+        }
         FrameMark
         TracyGpuCollect
-        glfwPollEvents();
     }
 
     ImGui_ImplOpenGL3_Shutdown();

@@ -1,8 +1,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "texture.hpp"
-#include "GL/gl3w.h"
 #include <iostream>
+#include "GL/gl3w.h"
+#include "TracyOpenGL.hpp"
 
 void set_tex_params()
 {
@@ -24,6 +25,8 @@ unsigned int create_texture(unsigned int width, unsigned int height, int interna
 // IMAGE TEXTURE
 ImageTexture::ImageTexture(std::string path, bool srgb)
 {
+    ZoneScoped
+    ZoneText(path.c_str(), path.size());
     int x, y, n;
     unsigned char* data = stbi_load(path.c_str(), &x, &y, &n, 4);
 
@@ -65,20 +68,19 @@ ImageTexture::ImageTexture(unsigned char *data, unsigned int width, unsigned int
 
 ImageTexture::~ImageTexture()
 {
-    glDeleteTextures(1, &m_id);
 }
 
-unsigned int ImageTexture::id()
+unsigned int ImageTexture::id() const
 {
     return m_id;
 }
 
-unsigned int ImageTexture::width()
+unsigned int ImageTexture::width() const
 {
     return m_width;
 }
 
-unsigned int ImageTexture::height()
+unsigned int ImageTexture::height() const
 {
     return m_height;
 }

@@ -11,9 +11,9 @@ public:
     ImageTexture(std::string path, bool srgb = false);
     ImageTexture(unsigned char *data, unsigned int width, unsigned int height);
     ~ImageTexture();
-    unsigned int id();
-    unsigned int width();
-    unsigned int height();
+    unsigned int id() const;
+    unsigned int width() const;
+    unsigned int height() const;
 
 private:
     unsigned int m_id, m_width, m_height, m_channels;

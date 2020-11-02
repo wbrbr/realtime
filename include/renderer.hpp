@@ -4,10 +4,11 @@
 #include "camera.hpp"
 #include "shader.hpp"
 #include <vector>
+#include "texture_loader.hpp"
 
 class Renderer {
 public:
-	Renderer(unsigned int width, unsigned int height);
+	Renderer(unsigned int width, unsigned int height, TextureLoader& loader);
 	void render(std::vector<Object> objects, Camera cam);
 	void setSkybox(Cubemap* skybox);
 
@@ -31,6 +32,8 @@ private:
 
 	Cubemap* skybox;
 	Cubemap irradiance;
+
+	TextureLoader* loader;
 
 	void geometryPass(const std::vector<Object>& objects, Camera& camera);
 	void ssaoPass(Camera& camera);

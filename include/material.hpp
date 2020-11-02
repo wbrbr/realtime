@@ -1,12 +1,12 @@
 #ifndef MATERIAL_HPP
 #define MATERIAL_HPP
-#include "texture.hpp"
+#include "texture_loader.hpp"
 
 class TextureMaterial
 {
 public:
-	ImageTexture* albedoMap;
-    ImageTexture* roughnessMetallicMap;
-	ImageTexture* normalMap;
+	TexID albedoMap;
+    TexID roughnessMetallicMap;
+	TexID normalMap;
 };
 #endif

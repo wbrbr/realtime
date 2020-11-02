@@ -110,7 +110,7 @@ unsigned int createSkyboxVAO()
 	return vao;
 }
 
-Renderer::Renderer(unsigned int width, unsigned int height):
+Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loader):
 				      width(width),
 					  height(height),
                       deferred_program("../shaders/deferred.vert", "../shaders/deferred.frag"),
@@ -121,7 +121,8 @@ Renderer::Renderer(unsigned int width, unsigned int height):
 					  depth_program("../shaders/depth.vert", "../shaders/depth.frag"),
 					  draw_depth_program("../shaders/final.vert", "../shaders/depthdraw.frag"),
 					  skybox(nullptr),
-					  irradiance("../res/newport/irr_posy.hdr", "../res/newport/irr_negy.hdr", "../res/newport/irr_negx.hdr", "../res/newport/irr_posx.hdr", "../res/newport/irr_negz.hdr", "../res/newport/irr_posz.hdr") {
+					  irradiance("../res/newport/irr_posy.hdr", "../res/newport/irr_negy.hdr", "../res/newport/irr_negx.hdr", "../res/newport/irr_posx.hdr", "../res/newport/irr_negz.hdr", "../res/newport/irr_posz.hdr"),
+					  loader(&loader) {
 	glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	albedo = create_texture(width, height, GL_RGB32F, GL_RGB);
@@ -193,11 +194,11 @@ void Renderer::geometryPass(const std::vector<Object>& objects, Camera& camera)
 
 	for (auto obj : objects) {
 		glActiveTexture(GL_TEXTURE0 + 0);
-		glBindTexture(GL_TEXTURE_2D, obj.material.albedoMap->id());
+		glBindTexture(GL_TEXTURE_2D, loader->get(obj.material.albedoMap)->id());
 		glActiveTexture(GL_TEXTURE0 + 1);
-		glBindTexture(GL_TEXTURE_2D, obj.material.roughnessMetallicMap->id());
+		glBindTexture(GL_TEXTURE_2D, loader->get(obj.material.roughnessMetallicMap)->id());
 		glActiveTexture(GL_TEXTURE0 + 2);
-		glBindTexture(GL_TEXTURE_2D, obj.material.normalMap->id());
+		glBindTexture(GL_TEXTURE_2D, loader->get(obj.material.normalMap)->id());
 
 		glBindVertexArray(obj.mesh.vao);
 		glUniformMatrix4fv(deferred_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(obj.transform.getMatrix()));
