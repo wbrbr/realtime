@@ -26,6 +26,7 @@
 #include "light.hpp"
 #include "texture.hpp"
 #include "renderer.hpp"
+#include "TracyOpenGL.hpp"
 
 #define DBG_MODE 1
 
@@ -276,6 +277,8 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    TracyGpuContext
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
@@ -379,6 +382,8 @@ int main(int argc, char** argv)
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
+        FrameMark
+        TracyGpuCollect
         glfwPollEvents();
     }
 

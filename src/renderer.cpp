@@ -3,6 +3,7 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "TracyOpenGL.hpp"
 #include <random>
 #include <iostream>
 #include "imgui.h"
@@ -173,10 +174,10 @@ Renderer::Renderer(unsigned int width, unsigned int height):
 	cube_vao = createSkyboxVAO();
 }
 
-void Renderer::render(std::vector<Object> objects, Camera camera) {
-
-	ImGui::Text("Position: (%f, %f, %f)", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
-	glm::vec3 lightDir = glm::normalize(glm::vec3(0.f, -1.f, 0.f));
+void Renderer::geometryPass(const std::vector<Object>& objects, Camera& camera)
+{
+	ZoneScopedN("Geometry Pass")
+	TracyGpuZone("Geometry pass")
 
 	// === GEOMETRY PASS ===
 	glEnable(GL_DEPTH_TEST);
@@ -203,34 +204,18 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 		// glDrawArrays(GL_TRIANGLES, 0, obj.mesh.numVertices);
 		glDrawElements(GL_TRIANGLES, obj.mesh.numIndices, GL_UNSIGNED_INT, (void*)0);
 	}
-	
+}
+
+void Renderer::shadowPass(const std::vector<Object>& objects, glm::vec3 lightDir, glm::mat4 lightMatrix)
+{
+	ZoneScopedN("Shadow map")
+	TracyGpuZone("Shadow map")
 	// === DIRECTIONAL SHADOW MAP PASS ===
 	glViewport(0, 0, 2048, 2048);
 	glCullFace(GL_FRONT);
 	glBindFramebuffer(GL_FRAMEBUFFER, directional_depth_fbo);
 	glClear(GL_DEPTH_BUFFER_BIT);
-	static float zFar = 10.f;
-	static float zNear = 0.1f;
-	static float planeWidth = 1.f;
-	static float planeHeight = 1.f;
-	static glm::vec3 sunlightPosition(0.f, 10.f, 0.f);
-	if (ImGui::CollapsingHeader("Directional light")) {
-		ImGui::DragFloat3("Position", glm::value_ptr(sunlightPosition));
-		ImGui::DragFloat("Near plane", &zNear);
-		ImGui::DragFloat("Far plane", &zFar);
-		ImGui::DragFloat("Plane width", &planeWidth);
-		ImGui::DragFloat("Plane height", &planeHeight);
-		ImGui::Separator();
-	}
 
-	glm::vec3 up(0.f, 1.f, 0.f);
-	if (glm::length(glm::cross(up, lightDir)) == 0.) {
-		float sg = glm::dot(up, lightDir);
-		up = sg * glm::vec3(0.f, 0.f, -1.f);
-	}
-	glm::mat4 lightProjection = glm::ortho(-planeWidth, planeWidth, -planeHeight, planeHeight, zNear, zFar);
-	glm::mat4 lightView = glm::lookAt(sunlightPosition, lightDir, up);
-	glm::mat4 lightMatrix = lightProjection * lightView;
 
 	glUseProgram(depth_program.id());
 
@@ -244,7 +229,12 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 
 	glViewport(0, 0, width, height);
 	glCullFace(GL_BACK);
+}
 
+void Renderer::ssaoPass(Camera& camera)
+{
+	ZoneScopedN("SSAO")
+	TracyGpuZone("SSAO")
 	glDisable(GL_DEPTH_TEST);
 	// === SSAO PASS ===
 	glBindFramebuffer(GL_FRAMEBUFFER, ssao_fbo);
@@ -268,23 +258,27 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, rough_met_tex);
 	glDrawArrays(GL_TRIANGLES, 0, 3);
+}
 
-	// === SKYBOX PASS ===
-	// glBindVertexArray(0);
-	if (skybox != nullptr) {
-		glBindVertexArray(cube_vao);
-		glBindFramebuffer(GL_FRAMEBUFFER, skybox_fbo);
-		glUseProgram(skybox_program.id());
-		glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix()*glm::mat4(glm::mat3(camera.getViewMatrix()))));
-		glBindTexture(GL_TEXTURE_CUBE_MAP, skybox->id());
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		// glBindVertexArray(0);
-	}
+void Renderer::skyboxPass(Camera& camera)
+{
+	ZoneScopedN("Skybox")
+	TracyGpuZone("Skybox")
 
-	// === FINAL PASS ===
+	glBindVertexArray(cube_vao);
+	glBindFramebuffer(GL_FRAMEBUFFER, skybox_fbo);
+	glUseProgram(skybox_program.id());
+	glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix()))));
+	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox->id());
+	glDrawArrays(GL_TRIANGLES, 0, 36);
+}
+
+void Renderer::finalPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix)
+{
+	ZoneScopedN("Final pass")
+	TracyGpuZone("Final pass")
+
 	glBindFramebuffer(GL_FRAMEBUFFER, final_fbo);
-	// glClearColor(0.4f, 0.6f, 0.8f, 1.f);
-	// glClear(GL_COLOR_BUFFER_BIT);
 
 	if (skybox != nullptr) {
 		glUseProgram(draw_program.id());
@@ -320,8 +314,6 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glUniform1i(final_program.getLoc("irradianceMap"), 6);
 	glUniform3f(final_program.getLoc("sunLight.dir"), lightDir.x, lightDir.y, lightDir.z);
 	glUniform3f(final_program.getLoc("sunLight.color"), 1.f, 1.f, 1.f);
-	glUniform1f(final_program.getLoc("zNear"), zNear);
-	glUniform1f(final_program.getLoc("zFar"), zFar);
 	glUniformMatrix4fv(final_program.getLoc("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightMatrix));
 	glUniform1f(final_program.getLoc("ambientIntensity"), ambientIntensity);
 	glUniform1f(final_program.getLoc("shadowBias"), shadowBias);
@@ -342,6 +334,48 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glBindTexture(GL_TEXTURE_CUBE_MAP, irradiance.id());
 
 	glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
+void Renderer::render(std::vector<Object> objects, Camera camera) {
+	ZoneScopedN("Render (CPU)")
+	TracyGpuZone("Render (GPU)")
+
+	static float zFar = 10.f;
+	static float zNear = 0.1f;
+	static float planeWidth = 1.f;
+	static float planeHeight = 1.f;
+	static glm::vec3 sunlightPosition(0.f, 10.f, 0.f);
+	if (ImGui::CollapsingHeader("Directional light")) {
+		ImGui::DragFloat3("Position", glm::value_ptr(sunlightPosition));
+		ImGui::DragFloat("Near plane", &zNear);
+		ImGui::DragFloat("Far plane", &zFar);
+		ImGui::DragFloat("Plane width", &planeWidth);
+		ImGui::DragFloat("Plane height", &planeHeight);
+		ImGui::Separator();
+	}
+	glm::vec3 lightDir = glm::normalize(glm::vec3(0.f, -1.f, 0.f));
+	glm::vec3 up(0.f, 1.f, 0.f);
+	if (glm::length(glm::cross(up, lightDir)) == 0.) {
+		float sg = glm::dot(up, lightDir);
+		up = sg * glm::vec3(0.f, 0.f, -1.f);
+	}
+
+	glm::mat4 lightProjection = glm::ortho(-planeWidth, planeWidth, -planeHeight, planeHeight, zNear, zFar);
+	glm::mat4 lightView = glm::lookAt(sunlightPosition, lightDir, up);
+	glm::mat4 lightMatrix = lightProjection * lightView;
+
+	ImGui::Text("Position: (%f, %f, %f)", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
+
+	geometryPass(objects, camera);
+	shadowPass(objects, lightDir, lightMatrix);
+	ssaoPass(camera);
+
+	if (skybox != nullptr) {
+		skyboxPass(camera);
+	}
+
+	// === FINAL PASS ===
+	finalPass(camera, lightDir, lightMatrix);
 
 	// === DRAW TO SCREEN ===
 	const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao", "skybox", "sunlight shadow map"};

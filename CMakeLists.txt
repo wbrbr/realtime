@@ -12,14 +12,16 @@ list(APPEND SRCS "${IMGUI_SRC}/imgui_demo.cpp"
                  "${IMGUI_SRC}/imgui_impl_glfw.cpp"
                  "${IMGUI_SRC}/imgui_impl_opengl3.cpp"
                  "${IMGUI_SRC}/imgui_widgets.cpp"
-                 "${IMGUI_SRC}/imgui.cpp")
+                 "${IMGUI_SRC}/imgui.cpp"
+                 "${PROJECT_SOURCE_DIR}/external/tracy/TracyClient.cpp")
 list(APPEND SRCS "${PROJECT_SOURCE_DIR}/external/gl3w/src/gl3w.c")
 set(CMAKE_CXX_STANDARD 17)
 add_executable(realtime ${SRCS})
 include_directories("${PROJECT_SOURCE_DIR}/include" 
                     "${PROJECT_SOURCE_DIR}/external/gl3w/include"
                     "${PROJECT_SOURCE_DIR}/external/glm/include"
-                    "${PROJECT_SOURCE_DIR}/external/imgui/include")
+                    "${PROJECT_SOURCE_DIR}/external/imgui/include"
+                    "${PROJECT_SOURCE_DIR}/external/tracy")
 
 if (WIN32)
     include_directories("${PROJECT_SOURCE_DIR}/external/assimp/include;${PROJECT_SOURCE_DIR}/external/glfw/include")
@@ -29,11 +31,11 @@ endif()
 if (UNIX)
     find_package(ASSIMP REQUIRED)
     find_package(glfw3 3.3 REQUIRED)
-    target_link_libraries(realtime assimp glfw dl)
+    target_link_libraries(realtime assimp glfw dl pthread)
 endif()
 
 if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -DTRACY_ENABLE")
 endif (CMAKE_COMPILER_IS_GNUCC)
 
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
