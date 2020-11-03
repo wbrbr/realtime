@@ -37,7 +37,7 @@ private:
 
 	void geometryPass(const std::vector<Object>& objects, Camera& camera);
 	void ssaoPass(Camera& camera);
-	void shadowPass(const std::vector<Object>& objects, glm::vec3 lightDir, glm::mat4 lightMatrix);
+	void shadowPass(const std::vector<Object>& objects, glm::mat4 lightMatrix);
 	void skyboxPass(Camera& camera);
 	void finalPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix);
 };

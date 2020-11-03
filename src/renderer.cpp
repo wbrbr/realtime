@@ -3,6 +3,7 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "Tracy.hpp"
 #include "TracyOpenGL.hpp"
 #include <random>
 #include <iostream>
@@ -207,7 +208,7 @@ void Renderer::geometryPass(const std::vector<Object>& objects, Camera& camera)
 	}
 }
 
-void Renderer::shadowPass(const std::vector<Object>& objects, glm::vec3 lightDir, glm::mat4 lightMatrix)
+void Renderer::shadowPass(const std::vector<Object>& objects, glm::mat4 lightMatrix)
 {
 	ZoneScopedN("Shadow map")
 	TracyGpuZone("Shadow map")
@@ -368,7 +369,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	ImGui::Text("Position: (%f, %f, %f)", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
 
 	geometryPass(objects, camera);
-	shadowPass(objects, lightDir, lightMatrix);
+	shadowPass(objects, lightMatrix);
 	ssaoPass(camera);
 
 	if (skybox != nullptr) {

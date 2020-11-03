@@ -26,6 +26,7 @@
 #include "light.hpp"
 #include "texture.hpp"
 #include "renderer.hpp"
+#include "Tracy.hpp"
 #include "TracyOpenGL.hpp"
 #include "texture_loader.hpp"
 
@@ -105,7 +106,7 @@ TexID loadTextureFromPath(aiString prefix, aiString fileName, const aiScene* sce
         {
             std::cerr << "Embedded texture loading failed: " << stbi_failure_reason() << std::endl;
         }
-        return loader.add(std::move(ImageTexture(data,w,h)));
+        return loader.addMem(data,w,h);
     }
     else
     {
@@ -113,7 +114,7 @@ TexID loadTextureFromPath(aiString prefix, aiString fileName, const aiScene* sce
         texPath.Append(fileName.C_Str());
         std::string p{texPath.C_Str()};
         std::replace(p.begin(), p.end(), '\\', '/');
-        return loader.add(std::move(ImageTexture(p.c_str())));
+        return loader.queueFile(p);
     }
 }
 
@@ -214,7 +215,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
         } else {
             std::cerr << "no baseColor texture" << std::endl;
             unsigned char color[] = { 255, 0, 255, 255 };
-            obj.material.albedoMap = loader.add(std::move(ImageTexture(color, 1, 1)));
+            obj.material.albedoMap = loader.addMem(color, 1, 1);
         }
         material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &filePath);
         if (filePath.length > 0) {
@@ -223,7 +224,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
             std::cerr << "no roughness/metallic texture" << std::endl;
             // roughness = 1, metallic = 0
             unsigned char color[] = { 0, 255, 0, 255 };
-            obj.material.roughnessMetallicMap = loader.add(std::move(ImageTexture(color, 1, 1)));
+            obj.material.roughnessMetallicMap = loader.addMem(color, 1, 1);
         }
         texPath = prefix;
         bool normalMap = true;
@@ -240,7 +241,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
         if (!normalMap) {
             std::cerr << "no normal map" << std::endl;
             unsigned char color[] = { 128, 128, 255, 255 };
-            obj.material.normalMap = loader.add(std::move(ImageTexture(color, 1, 1)));
+            obj.material.normalMap = loader.addMem(color, 1, 1);
         }
     }
     return obj;
@@ -304,9 +305,8 @@ int main(int argc, char** argv)
     Cubemap skybox("../res/newport/_posy.hdr", "../res/newport/_negy.hdr", "../res/newport/_negx.hdr", "../res/newport/_posx.hdr", "../res/newport/_negz.hdr", "../res/newport/_posz.hdr");
 
     renderer.setSkybox(&skybox);
-    std::vector<ImageTexture> textures;
 	std::vector<Object> objects = loadFile(argv[1], loader);
-
+    loader.load();
 
     double lastCursorX, lastCursorY;
     float polar = 0.f; // [-pi/2, pi/2]

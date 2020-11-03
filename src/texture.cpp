@@ -3,6 +3,7 @@
 #include "texture.hpp"
 #include <iostream>
 #include "GL/gl3w.h"
+#include "Tracy.hpp"
 #include "TracyOpenGL.hpp"
 
 void set_tex_params()
@@ -27,6 +28,7 @@ ImageTexture::ImageTexture(std::string path, bool srgb)
 {
     ZoneScoped
     ZoneText(path.c_str(), path.size());
+    TracyGpuZone("ImageTexture::ImageTexture");
     int x, y, n;
     unsigned char* data = stbi_load(path.c_str(), &x, &y, &n, 4);
 
@@ -40,7 +42,7 @@ ImageTexture::ImageTexture(std::string path, bool srgb)
 
     glGenTextures(1, &m_id);
     glBindTexture(GL_TEXTURE_2D, m_id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -52,12 +54,14 @@ ImageTexture::ImageTexture(std::string path, bool srgb)
 
 ImageTexture::ImageTexture(unsigned char *data, unsigned int width, unsigned int height)
 {
+    ZoneScoped;
+    TracyGpuZone("ImageTexture::ImageTexture");
     m_width = width;
     m_height = height;
     m_channels = 4;
     glGenTextures(1, &m_id);
     glBindTexture(GL_TEXTURE_2D, m_id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
