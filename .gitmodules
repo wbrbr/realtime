@@ -1,3 +1,9 @@
 [submodule "external/tracy"]
 	path = external/tracy
 	url = https://github.com/wolfpld/tracy/
+[submodule "external/assimp"]
+	path = external/assimp
+	url = https://github.com/assimp/assimp
+[submodule "external/glfw"]
+	path = external/glfw
+	url = https://github.com/glfw/glfw
