@@ -5,7 +5,7 @@ project(realtime)
 set(CMAKE_BINARY_DIR ${CMAKE_BUILD_DIR})
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 
-file(GLOB SRCS "src/*.cpp" "src/*.c")
+set(SRCS "src/camera.cpp" "src/main.cpp" "src/mesh.cpp" "src/renderer.cpp" "src/shader.cpp" "src/texture.cpp" "src/texture_loader.cpp" "src/transform.cpp")
 set(IMGUI_SRC "${PROJECT_SOURCE_DIR}/external/imgui/src")
 list(APPEND SRCS "${IMGUI_SRC}/imgui_demo.cpp"
                  "${IMGUI_SRC}/imgui_draw.cpp"
@@ -23,6 +23,10 @@ target_include_directories(realtime PRIVATE "${PROJECT_SOURCE_DIR}/include"
                     "${PROJECT_SOURCE_DIR}/external/imgui/include"
                     "${PROJECT_SOURCE_DIR}/external/tracy")
 
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
 add_subdirectory("${PROJECT_SOURCE_DIR}/external/glfw")
 add_subdirectory("${PROJECT_SOURCE_DIR}/external/assimp")
 
@@ -37,8 +41,13 @@ add_subdirectory("${PROJECT_SOURCE_DIR}/external/assimp")
 #     target_link_libraries(realtime assimp glfw dl pthread)
 # endif()
 
-target_include_directories(realtime PRIVATE ${GLFW_INCLUDE_DIRS})
-target_link_libraries(realtime assimp ${GLFW_LIBRARIES})
+target_link_libraries(realtime assimp glfw)
+
+find_package(OpenGL REQUIRED)
+target_link_libraries(realtime OpenGL::GL)
+
+add_compile_definitions(TRACY_ENABLE)
+add_compile_definitions(NOMINMAX)
 
 # if (CMAKE_COMPILER_IS_GNUCC)
 #     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -DTRACY_ENABLE")

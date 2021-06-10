@@ -202,7 +202,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
     Object obj;
     obj.mesh = mesh;
 
-    std::string prefixPath = std::filesystem::path(path).parent_path();
+    std::string prefixPath = std::filesystem::path(path).parent_path().string();
     aiString prefix(prefixPath.c_str());
     prefix.Append("/");
     aiString filePath;

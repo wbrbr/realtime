@@ -5,7 +5,7 @@
 #include "texture.hpp"
 
 struct TexID {
-    unsigned int id;
+    size_t id;
 };
 
 class TextureLoader {
