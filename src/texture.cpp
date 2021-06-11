@@ -1,5 +1,5 @@
 // don't define because assimp already has it
-//#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "texture.hpp"
 #include <iostream>

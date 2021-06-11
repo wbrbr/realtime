@@ -187,10 +187,15 @@ void Renderer::geometryPass(const std::vector<Object>& objects, Camera& camera)
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	//glm::mat4 view_mat = camera.getViewMatrix();
-	//std::cout << view_mat[3][0] << std::endl;
-	glUseProgram(deferred_program.id());
-	glUniformMatrix4fv(deferred_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
+    glm::mat4 proj_mat = camera.getPerspectiveMatrix();
+
+    float pixel_width = 1.f / (float)width;
+    float pixel_height = 1.f / (float)height;
+    proj_mat[3][0] += (drand48() - 0.5) * pixel_width;
+    proj_mat[3][1] += (drand48() - 0.5) * pixel_height;
+
+    glUseProgram(deferred_program.id());
+    glUniformMatrix4fv(deferred_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(proj_mat * camera.getViewMatrix()));
 	glUniform1i(deferred_program.getLoc("albedoMap"), 0);
 	glUniform1i(deferred_program.getLoc("roughnessMetallicMap"), 1);
 	glUniform1i(deferred_program.getLoc("normalMap"), 2);
