@@ -147,10 +147,17 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
 	glDrawBuffers(1, attachments);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	glGenFramebuffers(1, &final_fbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, final_fbo);
+    glGenFramebuffers(1, &shading_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, shading_fbo);
+    shading_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shading_tex, 0);
+    glDrawBuffers(1, attachments);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    glGenFramebuffers(1, &taa_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, taa_fbo);
 	final_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, final_tex, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, final_tex, 0);
 	glDrawBuffers(1, attachments);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -282,12 +289,12 @@ void Renderer::skyboxPass(Camera& camera)
 	glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
-void Renderer::finalPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix)
+void Renderer::shadingPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix)
 {
-	ZoneScopedN("Final pass")
-	TracyGpuZone("Final pass")
+    ZoneScopedN("Shading pass")
+    TracyGpuZone("Shading pass")
 
-	glBindFramebuffer(GL_FRAMEBUFFER, final_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, shading_fbo);
 
 	if (skybox != nullptr) {
 		glUseProgram(draw_program.id());
@@ -343,6 +350,8 @@ void Renderer::finalPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatr
 	glBindTexture(GL_TEXTURE_CUBE_MAP, irradiance.id());
 
 	glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void Renderer::render(std::vector<Object> objects, Camera camera) {
@@ -383,8 +392,11 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 		skyboxPass(camera);
 	}
 
-	// === FINAL PASS ===
-	finalPass(camera, lightDir, lightMatrix);
+    // === SHADING PASS ===
+    shadingPass(camera, lightDir, lightMatrix);
+
+    // === TAA PASS ===
+    taaPass();
 
 	// === DRAW TO SCREEN ===
 	const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao", "skybox", "sunlight shadow map"};
@@ -414,6 +426,18 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 		glUseProgram(draw_program.id());
 	}
 	glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
+void Renderer::taaPass()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, taa_fbo);
+    glActiveTexture(GL_TEXTURE0);
+
+    glBindTexture(GL_TEXTURE_2D, shading_tex);
+    glUseProgram(draw_program.id());
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void Renderer::setSkybox(Cubemap* skybox)
