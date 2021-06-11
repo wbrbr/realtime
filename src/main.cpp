@@ -56,7 +56,7 @@ GLFWwindow* initWindow()
         return nullptr;
     }
     glfwWindowHint(GLFW_RESIZABLE, 0);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint( GLFW_OPENGL_DEBUG_CONTEXT, true );
@@ -76,9 +76,9 @@ GLFWwindow* initWindow()
         glfwTerminate();
         return nullptr;
     }
-    if (!gl3wIsSupported(3, 3))
+    if (!gl3wIsSupported(4, 3))
     {
-        std::cout << "OpenGL 3.3 not supported" << std::endl;
+        std::cout << "OpenGL 4.3 not supported" << std::endl;
         return nullptr;
     }
     
@@ -88,7 +88,7 @@ GLFWwindow* initWindow()
 void dbgcallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *msg, const void *data)
 {
     if (DBG_MODE && type == GL_DEBUG_TYPE_ERROR) {
-        std::cout << "debug call: " << msg << std::endl;
+        std::cerr << "debug call: " << msg << std::endl;
     }
 }
 

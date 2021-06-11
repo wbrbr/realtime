@@ -6,12 +6,12 @@
 #include "glm/gtc/quaternion.hpp"
 #include <iostream>
 
-glm::mat4 Camera::getViewMatrix()
+glm::mat4 Camera::getViewMatrix() const
 {
     return matrix;
 }
 
-glm::mat4 Camera::getPerspectiveMatrix()
+glm::mat4 Camera::getPerspectiveMatrix() const
 {
     return glm::perspective(glm::radians(60.f), 16.f/9.f, 0.1f, 2000.f);
 }
@@ -22,12 +22,12 @@ void Camera::setPosition(glm::vec3 v)
     updateMatrix();
 }
 
-glm::vec3 Camera::getPosition()
+glm::vec3 Camera::getPosition() const
 {
     return pos;
 }
 
-glm::vec3 Camera::getTarget()
+glm::vec3 Camera::getTarget() const
 {
     return target;
 }

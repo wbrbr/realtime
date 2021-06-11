@@ -120,7 +120,8 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
 					  draw_program("shaders/final.vert", "shaders/draw.frag"),
 					  skybox_program("shaders/skybox.vert", "shaders/skybox.frag"),
 					  depth_program("shaders/depth.vert", "shaders/depth.frag"),
-					  draw_depth_program("shaders/final.vert", "shaders/depthdraw.frag"),
+                      draw_depth_program("shaders/final.vert", "shaders/depthdraw.frag"),
+                      taa_program("shaders/final.vert", "shaders/taa.frag"),
 					  skybox(nullptr),
 					  irradiance("res/newport/irr_posy.hdr", "res/newport/irr_negy.hdr", "res/newport/irr_negx.hdr", "res/newport/irr_posx.hdr", "res/newport/irr_negz.hdr", "res/newport/irr_posz.hdr"),
 					  loader(&loader) {
@@ -173,6 +174,8 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
 
 	directional_depth_tex = create_texture(2048, 2048, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
 
+    history_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
+
 	glGenFramebuffers(1, &directional_depth_fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, directional_depth_fbo);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, directional_depth_tex, 0);
@@ -191,13 +194,15 @@ void Renderer::geometryPass(const std::vector<Object>& objects, Camera& camera)
 	// === GEOMETRY PASS ===
 	glEnable(GL_DEPTH_TEST);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-	glClearColor(0.0, 0.0, 0.0, 1.0);
+    glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glm::mat4 proj_mat = camera.getPerspectiveMatrix();
 
-    float pixel_width = 1.f / (float)width;
-    float pixel_height = 1.f / (float)height;
+    /* float pixel_width = 2.f / (float)width;
+    float pixel_height = 2.f / (float)height; */
+    float pixel_width = 0.3f / (float)width;
+    float pixel_height = 0.3f / (float)height;
     proj_mat[3][0] += (drand48() - 0.5) * pixel_width;
     proj_mat[3][1] += (drand48() - 0.5) * pixel_height;
 
@@ -396,7 +401,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
     shadingPass(camera, lightDir, lightMatrix);
 
     // === TAA PASS ===
-    taaPass();
+    taaPass(camera);
 
 	// === DRAW TO SCREEN ===
 	const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao", "skybox", "sunlight shadow map"};
@@ -428,16 +433,34 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-void Renderer::taaPass()
+void Renderer::taaPass(const Camera& camera)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, taa_fbo);
-    glActiveTexture(GL_TEXTURE0);
 
+    glUseProgram(taa_program.id());
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, history_tex);
+    glUniform1i(taa_program.getLoc("history"), 0);
+
+    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, shading_tex);
-    glUseProgram(draw_program.id());
+    glUniform1i(taa_program.getLoc("current"), 1);
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, position_tex);
+    glUniform1i(taa_program.getLoc("world_positions"), 2);
+
+    glUniformMatrix4fv(taa_program.getLoc("history_clip_from_world"), 1, GL_FALSE, glm::value_ptr(history_clip_from_world));
+
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    history_clip_from_world = camera.getPerspectiveMatrix() * camera.getViewMatrix();
+
+    // copy frame to history
+    glCopyImageSubData(final_tex, GL_TEXTURE_2D, 0, 0, 0, 0, history_tex, GL_TEXTURE_2D, 0, 0, 0, 0, width, height, 1);
 }
 
 void Renderer::setSkybox(Cubemap* skybox)
