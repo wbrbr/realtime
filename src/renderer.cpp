@@ -199,15 +199,16 @@ void Renderer::geometryPass(const std::vector<Object>& objects, Camera& camera)
 
     glm::mat4 proj_mat = camera.getPerspectiveMatrix();
 
-    /* float pixel_width = 2.f / (float)width;
-    float pixel_height = 2.f / (float)height; */
-    float pixel_width = 0.3f / (float)width;
-    float pixel_height = 0.3f / (float)height;
-    proj_mat[3][0] += (drand48() - 0.5) * pixel_width;
-    proj_mat[3][1] += (drand48() - 0.5) * pixel_height;
+    float pixel_width = 2.f / (float)width;
+    float pixel_height = 2.f / (float)height;
+    /* float pixel_width = 0.3f / (float)width;
+    float pixel_height = 0.3f / (float)height; */
+    glm::mat4 jitter_mat = glm::mat4(1);
+    jitter_mat[3][0] += (drand48() - 0.5) * pixel_width;
+    jitter_mat[3][1] += (drand48() - 0.5) * pixel_height;
 
     glUseProgram(deferred_program.id());
-    glUniformMatrix4fv(deferred_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(proj_mat * camera.getViewMatrix()));
+    glUniformMatrix4fv(deferred_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(jitter_mat * camera.getPerspectiveMatrix() * camera.getViewMatrix()));
 	glUniform1i(deferred_program.getLoc("albedoMap"), 0);
 	glUniform1i(deferred_program.getLoc("roughnessMetallicMap"), 1);
 	glUniform1i(deferred_program.getLoc("normalMap"), 2);
