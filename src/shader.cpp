@@ -59,11 +59,21 @@ unsigned int loadShaderProgramFromSource(const char* vSource, const char* fSourc
 unsigned int loadShaderProgram(std::string vPath, std::string fPath)
 {
     std::ifstream vertex_file(vPath);
+    if (!vertex_file.is_open()) {
+        std::cerr << "Error opening vertex shader: " << vPath << std::endl;
+        exit(1);
+    }
     std::stringstream buf;
     buf << vertex_file.rdbuf();
     std::string vertex_source = buf.str();
+
     buf.str("");
+
     std::ifstream fragment_file(fPath);
+    if (!fragment_file.is_open()) {
+        std::cerr << "Error opening fragment shader: " << fPath << std::endl;
+        exit(1);
+    }
     buf << fragment_file.rdbuf();
     std::string fragment_source = buf.str();
 

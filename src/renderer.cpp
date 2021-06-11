@@ -114,15 +114,15 @@ unsigned int createSkyboxVAO()
 Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loader):
 				      width(width),
 					  height(height),
-                      deferred_program("../shaders/deferred.vert", "../shaders/deferred.frag"),
-                      final_program("../shaders/final.vert", "../shaders/final.frag"),
-					  ssao_program("../shaders/final.vert", "../shaders/ssao.frag"),
-					  draw_program("../shaders/final.vert", "../shaders/draw.frag"),
-					  skybox_program("../shaders/skybox.vert", "../shaders/skybox.frag"),
-					  depth_program("../shaders/depth.vert", "../shaders/depth.frag"),
-					  draw_depth_program("../shaders/final.vert", "../shaders/depthdraw.frag"),
+                      deferred_program("shaders/deferred.vert", "shaders/deferred.frag"),
+                      final_program("shaders/final.vert", "shaders/final.frag"),
+					  ssao_program("shaders/final.vert", "shaders/ssao.frag"),
+					  draw_program("shaders/final.vert", "shaders/draw.frag"),
+					  skybox_program("shaders/skybox.vert", "shaders/skybox.frag"),
+					  depth_program("shaders/depth.vert", "shaders/depth.frag"),
+					  draw_depth_program("shaders/final.vert", "shaders/depthdraw.frag"),
 					  skybox(nullptr),
-					  irradiance("../res/newport/irr_posy.hdr", "../res/newport/irr_negy.hdr", "../res/newport/irr_negx.hdr", "../res/newport/irr_posx.hdr", "../res/newport/irr_negz.hdr", "../res/newport/irr_posz.hdr"),
+					  irradiance("res/newport/irr_posy.hdr", "res/newport/irr_negy.hdr", "res/newport/irr_negx.hdr", "res/newport/irr_posx.hdr", "res/newport/irr_negz.hdr", "res/newport/irr_posz.hdr"),
 					  loader(&loader) {
 	glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -187,6 +187,8 @@ void Renderer::geometryPass(const std::vector<Object>& objects, Camera& camera)
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	//glm::mat4 view_mat = camera.getViewMatrix();
+	//std::cout << view_mat[3][0] << std::endl;
 	glUseProgram(deferred_program.id());
 	glUniformMatrix4fv(deferred_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * camera.getViewMatrix()));
 	glUniform1i(deferred_program.getLoc("albedoMap"), 0);

@@ -302,7 +302,7 @@ int main(int argc, char** argv)
 
     TextureLoader loader;
 	Renderer renderer(WIDTH, HEIGHT, loader);
-    Cubemap skybox("../res/newport/_posy.hdr", "../res/newport/_negy.hdr", "../res/newport/_negx.hdr", "../res/newport/_posx.hdr", "../res/newport/_negz.hdr", "../res/newport/_posz.hdr");
+    Cubemap skybox("res/newport/_posy.hdr", "res/newport/_negy.hdr", "res/newport/_negx.hdr", "res/newport/_posx.hdr", "res/newport/_negz.hdr", "res/newport/_posz.hdr");
 
     renderer.setSkybox(&skybox);
 	std::vector<Object> objects = loadFile(argv[1], loader);

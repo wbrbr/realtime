@@ -36,6 +36,7 @@ ImageTexture::ImageTexture(std::string path, bool srgb)
     if (data == NULL)
     {
         std::cerr << "Texture loading failed: " << stbi_failure_reason() << " (" << path << ")" << std::endl;
+        exit(1);
     }
     m_width = x;
     m_height = y;
