@@ -119,7 +119,6 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
 					  ssao_program("shaders/final.vert", "shaders/ssao.frag"),
 					  draw_program("shaders/final.vert", "shaders/draw.frag"),
 					  skybox_program("shaders/skybox.vert", "shaders/skybox.frag"),
-					  depth_program("shaders/depth.vert", "shaders/depth.frag"),
                       draw_depth_program("shaders/final.vert", "shaders/depthdraw.frag"),
                       taa_program("shaders/final.vert", "shaders/taa.frag"),
 					  skybox(nullptr),
@@ -159,16 +158,9 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
 	noise_tex = createNoiseTexture();
 	setupSamples(ssao_samples);
 
-	directional_depth_tex = create_texture(2048, 2048, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
 
     history_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
 
-	glGenFramebuffers(1, &directional_depth_fbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, directional_depth_fbo);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, directional_depth_tex, 0);
-	glDrawBuffer(GL_NONE);
-	glReadBuffer(GL_NONE);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	cube_vao = createSkyboxVAO();
 }
@@ -230,28 +222,38 @@ void GeometryPass::execute(const std::vector<Object>& objects, const Camera& cam
 	}
 }
 
-void Renderer::shadowPass(const std::vector<Object>& objects, glm::mat4 lightMatrix)
+ShadowPass::ShadowPass():  program("shaders/depth.vert", "shaders/depth.frag")
+{
+    shadow_tex = create_texture(2048, 2048, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadow_tex, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void ShadowPass::execute(const std::vector<Object>& objects, glm::mat4 lightMatrix)
 {
 	ZoneScopedN("Shadow map")
 	TracyGpuZone("Shadow map")
 	// === DIRECTIONAL SHADOW MAP PASS ===
 	glViewport(0, 0, 2048, 2048);
 	glCullFace(GL_FRONT);
-	glBindFramebuffer(GL_FRAMEBUFFER, directional_depth_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	glClear(GL_DEPTH_BUFFER_BIT);
 
 
-	glUseProgram(depth_program.id());
+    glUseProgram(program.id());
 
-	glUniformMatrix4fv(depth_program.getLoc("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightMatrix));
+    glUniformMatrix4fv(program.getLoc("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightMatrix));
 
 	for (auto obj : objects) {
 		glBindVertexArray(obj.mesh.vao);
-		glUniformMatrix4fv(depth_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(obj.transform.getMatrix()));
+        glUniformMatrix4fv(program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(obj.transform.getMatrix()));
 		glDrawElements(GL_TRIANGLES, obj.mesh.numIndices, GL_UNSIGNED_INT, (void*)0);
 	}
 
-	glViewport(0, 0, width, height);
 	glCullFace(GL_BACK);
 }
 
@@ -347,7 +349,7 @@ void Renderer::shadingPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMa
 	glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, geometry_pass.normal_tex);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, directional_depth_tex);
+    glBindTexture(GL_TEXTURE_2D, shadow_pass.shadow_tex);
 	glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, geometry_pass.rough_met_tex);
 	glActiveTexture(GL_TEXTURE4);
@@ -393,7 +395,9 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	ImGui::Text("Position: (%f, %f, %f)", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
 
     geometry_pass.execute(objects, camera, loader);
-	shadowPass(objects, lightMatrix);
+    shadow_pass.execute(objects, lightMatrix);
+    glViewport(0, 0, width, height);
+
     ssaoPass(camera, geometry_pass.position_tex, geometry_pass.normal_tex, geometry_pass.rough_met_tex);
 
 	if (skybox != nullptr) {
@@ -420,7 +424,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
         case 5: display_tex = geometry_pass.position_tex; break;
 		case 6: display_tex = ssao_tex; break;
 		case 7: display_tex = skybox_tex; break;
-		case 8: display_tex = directional_depth_tex; break;
+        case 8: display_tex = shadow_pass.shadow_tex; break;
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
