@@ -24,7 +24,7 @@ class Cubemap
 public:
     Cubemap(std::string up, std::string down, std::string left, std::string right, std::string front, std::string back);
     ~Cubemap();
-    unsigned int id();
+    unsigned int id() const;
 
 private:
     unsigned int m_id;

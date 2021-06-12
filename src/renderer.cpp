@@ -117,8 +117,8 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
                       geometry_pass(width, height),
                       skybox_pass(width, height),
                       ssao_pass(width, height),
-                      final_program("shaders/final.vert", "shaders/final.frag"),
-					  draw_program("shaders/final.vert", "shaders/draw.frag"),
+                      shading_pass(width, height),
+                      draw_program("shaders/final.vert", "shaders/draw.frag"),
                       draw_depth_program("shaders/final.vert", "shaders/depthdraw.frag"),
                       taa_program("shaders/final.vert", "shaders/taa.frag"),
 					  skybox(nullptr),
@@ -127,12 +127,6 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
 
     unsigned int attachments[1] = { GL_COLOR_ATTACHMENT0 };
 
-    glGenFramebuffers(1, &shading_fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, shading_fbo);
-    shading_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shading_tex, 0);
-    glDrawBuffers(1, attachments);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glGenFramebuffers(1, &taa_fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, taa_fbo);
@@ -310,14 +304,25 @@ void SkyboxPass::execute(const Camera& camera, Cubemap* cubemap)
 	glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
-void Renderer::shadingPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, unsigned int skybox_tex)
+ShadingPass::ShadingPass(unsigned int width, unsigned int height): draw_program("shaders/final.vert", "shaders/draw.frag"), shading_program("shaders/final.vert", "shaders/final.frag")
+{
+    unsigned int attachments[1] = { GL_COLOR_ATTACHMENT0 };
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    shading_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shading_tex, 0);
+    glDrawBuffers(1, attachments);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, unsigned int skybox_tex, bool draw_skybox, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance)
 {
     ZoneScopedN("Shading pass")
     TracyGpuZone("Shading pass")
 
-    glBindFramebuffer(GL_FRAMEBUFFER, shading_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-	if (skybox != nullptr) {
+    if (draw_skybox) {
 		glUseProgram(draw_program.id());
 		glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, skybox_tex);
@@ -337,36 +342,36 @@ void Renderer::shadingPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMa
 	ImGui::SliderFloat("Shadow bias", &shadowBias, 0.f, 0.1f, "%.6f", 10.f);
 
 
-	glUseProgram(final_program.id());
-	glUniform1i(final_program.getLoc("pointLightsNum"), 1);
-	glUniform3fv(final_program.getLoc("pointLights[0].position"), 1, lightPos);
-	glUniform3fv(final_program.getLoc("pointLights[0].color"), 1, lightColor);
-	glUniform3f(final_program.getLoc("camPos"), camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
-	glUniform1i(final_program.getLoc("albedotex"), 0);
-	glUniform1i(final_program.getLoc("normaltex"), 1);
-	glUniform1i(final_program.getLoc("depthtex"), 2);
-	glUniform1i(final_program.getLoc("roughmettex"), 3);
-	glUniform1i(final_program.getLoc("positiontex"), 4);
-	glUniform1i(final_program.getLoc("ssaotex"), 5);
-	glUniform1i(final_program.getLoc("irradianceMap"), 6);
-	glUniform3f(final_program.getLoc("sunLight.dir"), lightDir.x, lightDir.y, lightDir.z);
-	glUniform3f(final_program.getLoc("sunLight.color"), 1.f, 1.f, 1.f);
-	glUniformMatrix4fv(final_program.getLoc("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightMatrix));
-	glUniform1f(final_program.getLoc("ambientIntensity"), ambientIntensity);
-	glUniform1f(final_program.getLoc("shadowBias"), shadowBias);
+    glUseProgram(shading_program.id());
+    glUniform1i(shading_program.getLoc("pointLightsNum"), 1);
+    glUniform3fv(shading_program.getLoc("pointLights[0].position"), 1, lightPos);
+    glUniform3fv(shading_program.getLoc("pointLights[0].color"), 1, lightColor);
+    glUniform3f(shading_program.getLoc("camPos"), camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
+    glUniform1i(shading_program.getLoc("albedotex"), 0);
+    glUniform1i(shading_program.getLoc("normaltex"), 1);
+    glUniform1i(shading_program.getLoc("depthtex"), 2);
+    glUniform1i(shading_program.getLoc("roughmettex"), 3);
+    glUniform1i(shading_program.getLoc("positiontex"), 4);
+    glUniform1i(shading_program.getLoc("ssaotex"), 5);
+    glUniform1i(shading_program.getLoc("irradianceMap"), 6);
+    glUniform3f(shading_program.getLoc("sunLight.dir"), lightDir.x, lightDir.y, lightDir.z);
+    glUniform3f(shading_program.getLoc("sunLight.color"), 1.f, 1.f, 1.f);
+    glUniformMatrix4fv(shading_program.getLoc("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightMatrix));
+    glUniform1f(shading_program.getLoc("ambientIntensity"), ambientIntensity);
+    glUniform1f(shading_program.getLoc("shadowBias"), shadowBias);
 
 	glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, geometry_pass.albedo_tex);
+    glBindTexture(GL_TEXTURE_2D, albedo_tex);
 	glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, geometry_pass.normal_tex);
+    glBindTexture(GL_TEXTURE_2D, normal_tex);
 	glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, shadow_pass.shadow_tex);
+    glBindTexture(GL_TEXTURE_2D, shadow_tex);
 	glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, geometry_pass.rough_met_tex);
+    glBindTexture(GL_TEXTURE_2D, rough_met_tex);
 	glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, geometry_pass.position_tex);
+    glBindTexture(GL_TEXTURE_2D, position_tex);
 	glActiveTexture(GL_TEXTURE5);
-    glBindTexture(GL_TEXTURE_2D, ssao_pass.ssao_tex);
+    glBindTexture(GL_TEXTURE_2D, ssao_tex);
 	glActiveTexture(GL_TEXTURE6);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, irradiance.id());
 
@@ -416,10 +421,10 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	}
 
     // === SHADING PASS ===
-    shadingPass(camera, lightDir, lightMatrix, skybox_pass.skybox_tex);
+    shading_pass.execute(camera, lightDir, lightMatrix, skybox_pass.skybox_tex, skybox != nullptr, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex,  geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
 
     // === TAA PASS ===
-    taaPass(camera, geometry_pass.position_tex);
+    taaPass(camera, geometry_pass.position_tex, shading_pass.shading_tex);
 
 	// === DRAW TO SCREEN ===
 	const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao", "skybox", "sunlight shadow map"};
@@ -445,13 +450,13 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 		glUseProgram(draw_depth_program.id());
 		glUniform1f(draw_depth_program.getLoc("zNear"), zNear);
 		glUniform1f(draw_depth_program.getLoc("zFar"), zFar);
-	} else {	
-		glUseProgram(draw_program.id());
+    } else {
+        glUseProgram(draw_program.id());
 	}
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-void Renderer::taaPass(const Camera& camera, unsigned int position_tex)
+void Renderer::taaPass(const Camera& camera, unsigned int position_tex, unsigned int shading_tex)
 {
     ZoneScopedN("TAA pass")
     TracyGpuZone("TAA pass")

@@ -63,6 +63,19 @@ private:
     std::vector<glm::vec3> samples;
 };
 
+class ShadingPass {
+public:
+    ShadingPass(unsigned int width, unsigned int height);
+    void execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, unsigned int skybox_tex, bool draw_skybox, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance);
+
+    unsigned int shading_tex;
+
+private:
+    unsigned int fbo;
+    Shader draw_program;
+    Shader shading_program;
+};
+
 class Renderer {
 public:
 	Renderer(unsigned int width, unsigned int height, TextureLoader& loader);
@@ -75,11 +88,11 @@ private:
     ShadowPass shadow_pass;
     SkyboxPass skybox_pass;
     SSAOPass ssao_pass;
-	Shader final_program;
-	Shader draw_program;
-	Shader draw_depth_program;
+    ShadingPass shading_pass;
+    Shader draw_program;
+    Shader draw_depth_program;
     Shader taa_program;
-    unsigned int noise_tex, final_tex, shading_tex, history_tex;
+    unsigned int noise_tex, final_tex, history_tex;
     unsigned int shading_fbo;
     unsigned int taa_fbo;
 
@@ -92,7 +105,6 @@ private:
 
 	TextureLoader* loader;
 
-    void shadingPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, unsigned int skybox_tex);
-    void taaPass(const Camera& camera, unsigned int position_tex);
+    void taaPass(const Camera& camera, unsigned int position_tex, unsigned int shading_tex);
 };
 #endif

@@ -154,7 +154,7 @@ Cubemap::~Cubemap()
     glDeleteTextures(1, &m_id);
 }
 
-unsigned int Cubemap::id()
+unsigned int Cubemap::id() const
 {
     return m_id;
 }
