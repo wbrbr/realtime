@@ -6,6 +6,24 @@
 #include <vector>
 #include "texture_loader.hpp"
 
+class GeometryPass {
+public:
+    GeometryPass(unsigned int width, unsigned int height);
+    void execute(const std::vector<Object>& objects, const Camera& camera, TextureLoader* loader);
+
+    unsigned int albedo_tex;
+    unsigned int normal_tex;
+    unsigned int rough_met_tex;
+    unsigned int position_tex;
+    unsigned int depth_texture;
+
+
+private:
+    Shader program;
+    unsigned int fbo;
+    unsigned int width, height;
+};
+
 class Renderer {
 public:
 	Renderer(unsigned int width, unsigned int height, TextureLoader& loader);
@@ -14,7 +32,7 @@ public:
 
 private:
 	unsigned int width, height;
-	Shader deferred_program;
+    GeometryPass geometry_pass;
 	Shader final_program;
 	Shader ssao_program;
 	Shader draw_program;
@@ -22,7 +40,7 @@ private:
 	Shader depth_program;
 	Shader draw_depth_program;
     Shader taa_program;
-    unsigned int fbo, albedo, normal_tex, rough_met_tex, position_tex, depth_texture, ssao_tex, noise_tex, final_tex, skybox_tex, directional_depth_tex, shading_tex, history_tex;
+    unsigned int fbo, ssao_tex, noise_tex, final_tex, skybox_tex, directional_depth_tex, shading_tex, history_tex;
 	unsigned int ssao_fbo;
     unsigned int shading_fbo;
 	unsigned int skybox_fbo;
@@ -39,11 +57,10 @@ private:
 
 	TextureLoader* loader;
 
-	void geometryPass(const std::vector<Object>& objects, Camera& camera);
-	void ssaoPass(Camera& camera);
+    void ssaoPass(Camera& camera, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex);
 	void shadowPass(const std::vector<Object>& objects, glm::mat4 lightMatrix);
 	void skyboxPass(Camera& camera);
     void shadingPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix);
-    void taaPass(const Camera& camera);
+    void taaPass(const Camera& camera, unsigned int position_tex);
 };
 #endif

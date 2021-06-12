@@ -114,7 +114,7 @@ unsigned int createSkyboxVAO()
 Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loader):
 				      width(width),
 					  height(height),
-                      deferred_program("shaders/deferred.vert", "shaders/deferred.frag"),
+                      geometry_pass(width, height),
                       final_program("shaders/final.vert", "shaders/final.frag"),
 					  ssao_program("shaders/final.vert", "shaders/ssao.frag"),
 					  draw_program("shaders/final.vert", "shaders/draw.frag"),
@@ -125,23 +125,10 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
 					  skybox(nullptr),
 					  irradiance("res/newport/irr_posy.hdr", "res/newport/irr_negy.hdr", "res/newport/irr_negx.hdr", "res/newport/irr_posx.hdr", "res/newport/irr_negz.hdr", "res/newport/irr_posz.hdr"),
 					  loader(&loader) {
-	glGenFramebuffers(1, &fbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-	albedo = create_texture(width, height, GL_RGB32F, GL_RGB);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, albedo, 0);
-	normal_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normal_tex, 0);
-	rough_met_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, rough_met_tex, 0);
-	position_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, position_tex, 0);
-	depth_texture = create_texture(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture, 0);
-	unsigned int attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
-	glDrawBuffers(4, attachments);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	glGenFramebuffers(1, &ssao_fbo);
+    unsigned int attachments[1] = { GL_COLOR_ATTACHMENT0 };
+
+    glGenFramebuffers(1, &ssao_fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, ssao_fbo);
 	ssao_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssao_tex, 0);
@@ -186,7 +173,26 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
 	cube_vao = createSkyboxVAO();
 }
 
-void Renderer::geometryPass(const std::vector<Object>& objects, Camera& camera)
+GeometryPass::GeometryPass(unsigned int width, unsigned int height): program("shaders/deferred.vert", "shaders/deferred.frag"), width(width), height(height)
+{
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    albedo_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, albedo_tex, 0);
+    normal_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normal_tex, 0);
+    rough_met_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, rough_met_tex, 0);
+    position_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, position_tex, 0);
+    depth_texture = create_texture(width, height, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture, 0);
+    unsigned int attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+    glDrawBuffers(4, attachments);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void GeometryPass::execute(const std::vector<Object>& objects, const Camera& camera, TextureLoader* loader)
 {
 	ZoneScopedN("Geometry Pass")
 	TracyGpuZone("Geometry pass")
@@ -197,21 +203,17 @@ void Renderer::geometryPass(const std::vector<Object>& objects, Camera& camera)
     glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glm::mat4 proj_mat = camera.getPerspectiveMatrix();
-
     float pixel_width = 2.f / (float)width;
     float pixel_height = 2.f / (float)height;
-    /* float pixel_width = 0.3f / (float)width;
-    float pixel_height = 0.3f / (float)height; */
     glm::mat4 jitter_mat = glm::mat4(1);
     jitter_mat[3][0] += (drand48() - 0.5) * pixel_width;
     jitter_mat[3][1] += (drand48() - 0.5) * pixel_height;
 
-    glUseProgram(deferred_program.id());
-    glUniformMatrix4fv(deferred_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(jitter_mat * camera.getPerspectiveMatrix() * camera.getViewMatrix()));
-	glUniform1i(deferred_program.getLoc("albedoMap"), 0);
-	glUniform1i(deferred_program.getLoc("roughnessMetallicMap"), 1);
-	glUniform1i(deferred_program.getLoc("normalMap"), 2);
+    glUseProgram(program.id());
+    glUniformMatrix4fv(program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(jitter_mat * camera.getPerspectiveMatrix() * camera.getViewMatrix()));
+    glUniform1i(program.getLoc("albedoMap"), 0);
+    glUniform1i(program.getLoc("roughnessMetallicMap"), 1);
+    glUniform1i(program.getLoc("normalMap"), 2);
 
 	for (auto obj : objects) {
 		glActiveTexture(GL_TEXTURE0 + 0);
@@ -222,8 +224,8 @@ void Renderer::geometryPass(const std::vector<Object>& objects, Camera& camera)
 		glBindTexture(GL_TEXTURE_2D, loader->get(obj.material.normalMap)->id());
 
 		glBindVertexArray(obj.mesh.vao);
-		glUniformMatrix4fv(deferred_program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(obj.transform.getMatrix()));
-		// glDrawArrays(GL_TRIANGLES, 0, obj.mesh.numVertices);
+        glUniformMatrix4fv(program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(obj.transform.getMatrix()));
+
 		glDrawElements(GL_TRIANGLES, obj.mesh.numIndices, GL_UNSIGNED_INT, (void*)0);
 	}
 }
@@ -253,7 +255,7 @@ void Renderer::shadowPass(const std::vector<Object>& objects, glm::mat4 lightMat
 	glCullFace(GL_BACK);
 }
 
-void Renderer::ssaoPass(Camera& camera)
+void Renderer::ssaoPass(Camera& camera, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex)
 {
 	ZoneScopedN("SSAO")
 	TracyGpuZone("SSAO")
@@ -341,15 +343,15 @@ void Renderer::shadingPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMa
 	glUniform1f(final_program.getLoc("shadowBias"), shadowBias);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, albedo);
+    glBindTexture(GL_TEXTURE_2D, geometry_pass.albedo_tex);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, normal_tex);
+    glBindTexture(GL_TEXTURE_2D, geometry_pass.normal_tex);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, directional_depth_tex);
 	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, rough_met_tex);
+    glBindTexture(GL_TEXTURE_2D, geometry_pass.rough_met_tex);
 	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_2D, position_tex);
+    glBindTexture(GL_TEXTURE_2D, geometry_pass.position_tex);
 	glActiveTexture(GL_TEXTURE5);
 	glBindTexture(GL_TEXTURE_2D, ssao_tex);
 	glActiveTexture(GL_TEXTURE6);
@@ -390,9 +392,9 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 
 	ImGui::Text("Position: (%f, %f, %f)", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
 
-	geometryPass(objects, camera);
+    geometry_pass.execute(objects, camera, loader);
 	shadowPass(objects, lightMatrix);
-	ssaoPass(camera);
+    ssaoPass(camera, geometry_pass.position_tex, geometry_pass.normal_tex, geometry_pass.rough_met_tex);
 
 	if (skybox != nullptr) {
 		skyboxPass(camera);
@@ -402,7 +404,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
     shadingPass(camera, lightDir, lightMatrix);
 
     // === TAA PASS ===
-    taaPass(camera);
+    taaPass(camera, geometry_pass.position_tex);
 
 	// === DRAW TO SCREEN ===
 	const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao", "skybox", "sunlight shadow map"};
@@ -411,11 +413,11 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	unsigned int display_tex = 0;
 	switch (current) {
 		case 0: display_tex = final_tex; break;
-		case 1: display_tex = albedo; break;
-		case 2: display_tex = normal_tex; break;
-		case 3: display_tex = depth_texture; break;
-		case 4: display_tex = rough_met_tex; break;
-		case 5: display_tex = position_tex; break;
+        case 1: display_tex = geometry_pass.albedo_tex; break;
+        case 2: display_tex = geometry_pass.normal_tex; break;
+        case 3: display_tex = geometry_pass.depth_texture; break;
+        case 4: display_tex = geometry_pass.rough_met_tex; break;
+        case 5: display_tex = geometry_pass.position_tex; break;
 		case 6: display_tex = ssao_tex; break;
 		case 7: display_tex = skybox_tex; break;
 		case 8: display_tex = directional_depth_tex; break;
@@ -434,7 +436,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-void Renderer::taaPass(const Camera& camera)
+void Renderer::taaPass(const Camera& camera, unsigned int position_tex)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, taa_fbo);
 
