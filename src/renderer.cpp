@@ -458,7 +458,11 @@ TAAPass::TAAPass(unsigned int width, unsigned int height): width(width), height(
     glDrawBuffers(1, attachments);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    float black[3] = { 0, 0, 0 };
     history_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
+    glClearTexImage(history_tex, 0, GL_RGB, GL_FLOAT, black);
+
+    history_clip_from_world = glm::mat4(1);
 }
 
 void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex)
