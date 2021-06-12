@@ -116,8 +116,8 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
 					  height(height),
                       geometry_pass(width, height),
                       skybox_pass(width, height),
+                      ssao_pass(width, height),
                       final_program("shaders/final.vert", "shaders/final.frag"),
-					  ssao_program("shaders/final.vert", "shaders/ssao.frag"),
 					  draw_program("shaders/final.vert", "shaders/draw.frag"),
                       draw_depth_program("shaders/final.vert", "shaders/depthdraw.frag"),
                       taa_program("shaders/final.vert", "shaders/taa.frag"),
@@ -126,13 +126,6 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
 					  loader(&loader) {
 
     unsigned int attachments[1] = { GL_COLOR_ATTACHMENT0 };
-
-    glGenFramebuffers(1, &ssao_fbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, ssao_fbo);
-	ssao_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssao_tex, 0);
-	glDrawBuffers(1, attachments);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glGenFramebuffers(1, &shading_fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, shading_fbo);
@@ -149,8 +142,6 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
-	noise_tex = createNoiseTexture();
-	setupSamples(ssao_samples);
 
 
     history_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
@@ -250,23 +241,37 @@ void ShadowPass::execute(const std::vector<Object>& objects, glm::mat4 lightMatr
 	glCullFace(GL_BACK);
 }
 
-void Renderer::ssaoPass(Camera& camera, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex)
+SSAOPass::SSAOPass(unsigned int width, unsigned int height): program("shaders/final.vert", "shaders/ssao.frag")
+{
+    noise_tex = createNoiseTexture();
+    setupSamples(samples);
+
+    unsigned int attachments[1] = { GL_COLOR_ATTACHMENT0 };
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    ssao_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssao_tex, 0);
+    glDrawBuffers(1, attachments);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void SSAOPass::execute(const Camera& camera, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex)
 {
 	ZoneScopedN("SSAO")
 	TracyGpuZone("SSAO")
 	glDisable(GL_DEPTH_TEST);
 	// === SSAO PASS ===
-	glBindFramebuffer(GL_FRAMEBUFFER, ssao_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	// glClearColor(1., 1., 1., 1.);
 	// glClear(GL_COLOR_BUFFER_BIT);
-	glUseProgram(ssao_program.id());
-	glUniform1i(ssao_program.getLoc("positiontex"), 0);
-	glUniform1i(ssao_program.getLoc("normaltex"), 1);
-	glUniform1i(ssao_program.getLoc("noisetex"), 2);
-	glUniform1i(ssao_program.getLoc("roughmettex"), 3);
-	glUniformMatrix4fv(ssao_program.getLoc("worldtoview"), 1, GL_FALSE, glm::value_ptr(camera.getViewMatrix()));
-	glUniformMatrix4fv(ssao_program.getLoc("projection"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix()));
-	glUniform3fv(ssao_program.getLoc("samples"), 64, reinterpret_cast<float*>(ssao_samples.data()));
+    glUseProgram(program.id());
+    glUniform1i(program.getLoc("positiontex"), 0);
+    glUniform1i(program.getLoc("normaltex"), 1);
+    glUniform1i(program.getLoc("noisetex"), 2);
+    glUniform1i(program.getLoc("roughmettex"), 3);
+    glUniformMatrix4fv(program.getLoc("worldtoview"), 1, GL_FALSE, glm::value_ptr(camera.getViewMatrix()));
+    glUniformMatrix4fv(program.getLoc("projection"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix()));
+    glUniform3fv(program.getLoc("samples"), 64, reinterpret_cast<float*>(samples.data()));
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, position_tex);
@@ -361,7 +366,7 @@ void Renderer::shadingPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMa
 	glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, geometry_pass.position_tex);
 	glActiveTexture(GL_TEXTURE5);
-	glBindTexture(GL_TEXTURE_2D, ssao_tex);
+    glBindTexture(GL_TEXTURE_2D, ssao_pass.ssao_tex);
 	glActiveTexture(GL_TEXTURE6);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, irradiance.id());
 
@@ -404,7 +409,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
     shadow_pass.execute(objects, lightMatrix);
     glViewport(0, 0, width, height);
 
-    ssaoPass(camera, geometry_pass.position_tex, geometry_pass.normal_tex, geometry_pass.rough_met_tex);
+    ssao_pass.execute(camera, geometry_pass.position_tex, geometry_pass.normal_tex, geometry_pass.rough_met_tex);
 
 	if (skybox != nullptr) {
         skybox_pass.execute(camera, skybox);
@@ -428,7 +433,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
         case 3: display_tex = geometry_pass.depth_texture; break;
         case 4: display_tex = geometry_pass.rough_met_tex; break;
         case 5: display_tex = geometry_pass.position_tex; break;
-		case 6: display_tex = ssao_tex; break;
+        case 6: display_tex = ssao_pass.ssao_tex; break;
         case 7: display_tex = skybox_pass.skybox_tex; break;
         case 8: display_tex = shadow_pass.shadow_tex; break;
 	}
@@ -448,6 +453,8 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 
 void Renderer::taaPass(const Camera& camera, unsigned int position_tex)
 {
+    ZoneScopedN("TAA pass")
+    TracyGpuZone("TAA pass")
     glBindFramebuffer(GL_FRAMEBUFFER, taa_fbo);
 
     glUseProgram(taa_program.id());
