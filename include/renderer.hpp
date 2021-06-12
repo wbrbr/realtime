@@ -9,7 +9,7 @@
 class GeometryPass {
 public:
     GeometryPass(unsigned int width, unsigned int height);
-    void execute(const std::vector<Object>& objects, const Camera& camera, TextureLoader* loader);
+    void execute(const std::vector<Object>& objects, const Camera& camera, TextureLoader* loader, glm::vec2 jitter);
 
     unsigned int albedo_tex;
     unsigned int normal_tex;
@@ -76,6 +76,21 @@ private:
     Shader shading_program;
 };
 
+class TAAPass {
+public:
+    TAAPass(unsigned int width, unsigned int height);
+    void execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex);
+
+    unsigned int taa_tex;
+    unsigned int history_tex;
+
+private:
+    unsigned int width, height;
+    unsigned int fbo;
+    Shader program;
+    glm::mat4 history_clip_from_world;
+};
+
 class Renderer {
 public:
 	Renderer(unsigned int width, unsigned int height, TextureLoader& loader);
@@ -89,22 +104,15 @@ private:
     SkyboxPass skybox_pass;
     SSAOPass ssao_pass;
     ShadingPass shading_pass;
+    TAAPass taa_pass;
     Shader draw_program;
     Shader draw_depth_program;
-    Shader taa_program;
-    unsigned int noise_tex, final_tex, history_tex;
-    unsigned int shading_fbo;
-    unsigned int taa_fbo;
-
-    glm::mat4 history_clip_from_world;
-
-	unsigned int cube_vao;
 
 	Cubemap* skybox;
 	Cubemap irradiance;
 
 	TextureLoader* loader;
 
-    void taaPass(const Camera& camera, unsigned int position_tex, unsigned int shading_tex);
+    bool use_taa;
 };
 #endif

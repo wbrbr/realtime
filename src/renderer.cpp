@@ -118,29 +118,14 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
                       skybox_pass(width, height),
                       ssao_pass(width, height),
                       shading_pass(width, height),
+                      taa_pass(width, height),
                       draw_program("shaders/final.vert", "shaders/draw.frag"),
                       draw_depth_program("shaders/final.vert", "shaders/depthdraw.frag"),
-                      taa_program("shaders/final.vert", "shaders/taa.frag"),
 					  skybox(nullptr),
 					  irradiance("res/newport/irr_posy.hdr", "res/newport/irr_negy.hdr", "res/newport/irr_negx.hdr", "res/newport/irr_posx.hdr", "res/newport/irr_negz.hdr", "res/newport/irr_posz.hdr"),
 					  loader(&loader) {
 
-    unsigned int attachments[1] = { GL_COLOR_ATTACHMENT0 };
-
-
-    glGenFramebuffers(1, &taa_fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, taa_fbo);
-	final_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, final_tex, 0);
-	glDrawBuffers(1, attachments);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
-
-
-    history_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
-
-
+    use_taa = true;
 }
 
 GeometryPass::GeometryPass(unsigned int width, unsigned int height): program("shaders/deferred.vert", "shaders/deferred.frag"), width(width), height(height)
@@ -162,7 +147,7 @@ GeometryPass::GeometryPass(unsigned int width, unsigned int height): program("sh
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void GeometryPass::execute(const std::vector<Object>& objects, const Camera& camera, TextureLoader* loader)
+void GeometryPass::execute(const std::vector<Object>& objects, const Camera& camera, TextureLoader* loader, glm::vec2 jitter)
 {
 	ZoneScopedN("Geometry Pass")
 	TracyGpuZone("Geometry pass")
@@ -173,11 +158,9 @@ void GeometryPass::execute(const std::vector<Object>& objects, const Camera& cam
     glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    float pixel_width = 2.f / (float)width;
-    float pixel_height = 2.f / (float)height;
     glm::mat4 jitter_mat = glm::mat4(1);
-    jitter_mat[3][0] += (drand48() - 0.5) * pixel_width;
-    jitter_mat[3][1] += (drand48() - 0.5) * pixel_height;
+    jitter_mat[3][0] += jitter.x;
+    jitter_mat[3][1] += jitter.y;
 
     glUseProgram(program.id());
     glUniformMatrix4fv(program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(jitter_mat * camera.getPerspectiveMatrix() * camera.getViewMatrix()));
@@ -408,9 +391,12 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glm::mat4 lightView = glm::lookAt(sunlightPosition, lightDir, up);
 	glm::mat4 lightMatrix = lightProjection * lightView;
 
-	ImGui::Text("Position: (%f, %f, %f)", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
+    ImGui::Text("Position: (%f, %f, %f)", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
 
-    geometry_pass.execute(objects, camera, loader);
+    ImGui::Checkbox("TAA", &use_taa);
+
+    glm::vec2 jitter = use_taa ? glm::vec2((drand48() - 0.5) * 2.f / (float)width, (drand48() - 0.5) * 2.f / (float)height) : glm::vec2(0);
+    geometry_pass.execute(objects, camera, loader, jitter);
     shadow_pass.execute(objects, lightMatrix);
     glViewport(0, 0, width, height);
 
@@ -420,11 +406,16 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
         skybox_pass.execute(camera, skybox);
 	}
 
+
     // === SHADING PASS ===
     shading_pass.execute(camera, lightDir, lightMatrix, skybox_pass.skybox_tex, skybox != nullptr, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex,  geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
 
-    // === TAA PASS ===
-    taaPass(camera, geometry_pass.position_tex, shading_pass.shading_tex);
+    if (use_taa) {
+        // === TAA PASS ===
+        taa_pass.execute(camera, geometry_pass.position_tex, shading_pass.shading_tex);
+    }
+
+    unsigned int final_tex = use_taa ? taa_pass.taa_tex : shading_pass.shading_tex;
 
 	// === DRAW TO SCREEN ===
 	const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao", "skybox", "sunlight shadow map"};
@@ -432,7 +423,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	ImGui::Combo("Display", &current, items, 9);
 	unsigned int display_tex = 0;
 	switch (current) {
-		case 0: display_tex = final_tex; break;
+        case 0: display_tex = final_tex; break;
         case 1: display_tex = geometry_pass.albedo_tex; break;
         case 2: display_tex = geometry_pass.normal_tex; break;
         case 3: display_tex = geometry_pass.depth_texture; break;
@@ -456,27 +447,41 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-void Renderer::taaPass(const Camera& camera, unsigned int position_tex, unsigned int shading_tex)
+TAAPass::TAAPass(unsigned int width, unsigned int height): width(width), height(height), program("shaders/final.vert", "shaders/taa.frag")
+{
+    unsigned int attachments[1] = { GL_COLOR_ATTACHMENT0 };
+
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    taa_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, taa_tex, 0);
+    glDrawBuffers(1, attachments);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    history_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
+}
+
+void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex)
 {
     ZoneScopedN("TAA pass")
     TracyGpuZone("TAA pass")
-    glBindFramebuffer(GL_FRAMEBUFFER, taa_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-    glUseProgram(taa_program.id());
+    glUseProgram(program.id());
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, history_tex);
-    glUniform1i(taa_program.getLoc("history"), 0);
+    glUniform1i(program.getLoc("history"), 0);
 
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, shading_tex);
-    glUniform1i(taa_program.getLoc("current"), 1);
+    glUniform1i(program.getLoc("current"), 1);
 
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, position_tex);
-    glUniform1i(taa_program.getLoc("world_positions"), 2);
+    glUniform1i(program.getLoc("world_positions"), 2);
 
-    glUniformMatrix4fv(taa_program.getLoc("history_clip_from_world"), 1, GL_FALSE, glm::value_ptr(history_clip_from_world));
+    glUniformMatrix4fv(program.getLoc("history_clip_from_world"), 1, GL_FALSE, glm::value_ptr(history_clip_from_world));
 
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
@@ -485,7 +490,7 @@ void Renderer::taaPass(const Camera& camera, unsigned int position_tex, unsigned
     history_clip_from_world = camera.getPerspectiveMatrix() * camera.getViewMatrix();
 
     // copy frame to history
-    glCopyImageSubData(final_tex, GL_TEXTURE_2D, 0, 0, 0, 0, history_tex, GL_TEXTURE_2D, 0, 0, 0, 0, width, height, 1);
+    glCopyImageSubData(taa_tex, GL_TEXTURE_2D, 0, 0, 0, 0, history_tex, GL_TEXTURE_2D, 0, 0, 0, 0, width, height, 1);
 }
 
 void Renderer::setSkybox(Cubemap* skybox)
