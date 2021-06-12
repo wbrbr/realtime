@@ -36,6 +36,19 @@ private:
     unsigned int fbo;
 };
 
+class SkyboxPass {
+public:
+    SkyboxPass(unsigned int width, unsigned int height);
+    void execute(const Camera& camera, Cubemap* cubemap);
+
+    unsigned int skybox_tex;
+
+private:
+    Shader program;
+    unsigned int cube_vao;
+    unsigned int fbo;
+};
+
 class Renderer {
 public:
 	Renderer(unsigned int width, unsigned int height, TextureLoader& loader);
@@ -46,16 +59,15 @@ private:
 	unsigned int width, height;
     GeometryPass geometry_pass;
     ShadowPass shadow_pass;
+    SkyboxPass skybox_pass;
 	Shader final_program;
 	Shader ssao_program;
 	Shader draw_program;
-	Shader skybox_program;
 	Shader draw_depth_program;
     Shader taa_program;
-    unsigned int ssao_tex, noise_tex, final_tex, skybox_tex, shading_tex, history_tex;
+    unsigned int ssao_tex, noise_tex, final_tex, shading_tex, history_tex;
 	unsigned int ssao_fbo;
     unsigned int shading_fbo;
-	unsigned int skybox_fbo;
     unsigned int taa_fbo;
 
     glm::mat4 history_clip_from_world;
@@ -69,8 +81,7 @@ private:
 	TextureLoader* loader;
 
     void ssaoPass(Camera& camera, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex);
-	void skyboxPass(Camera& camera);
-    void shadingPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix);
+    void shadingPass(Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, unsigned int skybox_tex);
     void taaPass(const Camera& camera, unsigned int position_tex);
 };
 #endif
