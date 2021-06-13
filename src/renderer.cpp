@@ -113,7 +113,6 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
     : width(width)
     , height(height)
     , geometry_pass(width, height)
-    , skybox_pass(width, height)
     , ssao_pass(width, height)
     , shading_pass(width, height)
     , taa_pass(width, height)
@@ -260,36 +259,10 @@ void SSAOPass::execute(const Camera& camera, unsigned int position_tex, unsigned
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-SkyboxPass::SkyboxPass(unsigned int width, unsigned int height)
-    : program("shaders/skybox.vert", "shaders/skybox.frag")
-{
-    cube_vao = createSkyboxVAO();
-
-    unsigned int attachments[1] = { GL_COLOR_ATTACHMENT0 };
-    glGenFramebuffers(1, &fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    skybox_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, skybox_tex, 0);
-    glDrawBuffers(1, attachments);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void SkyboxPass::execute(const Camera& camera, Cubemap* cubemap)
-{
-    ZoneScopedN("Skybox");
-    TracyGpuZone("Skybox");
-
-    glBindVertexArray(cube_vao);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glUseProgram(program.id());
-    glUniformMatrix4fv(program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix()))));
-    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap->id());
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-}
-
 ShadingPass::ShadingPass(unsigned int width, unsigned int height)
     : draw_program("shaders/final.vert", "shaders/draw.frag")
     , shading_program("shaders/final.vert", "shaders/final.frag")
+    , skybox_program("shaders/skybox.vert", "shaders/skybox.frag")
 {
     unsigned int attachments[1] = { GL_COLOR_ATTACHMENT0 };
     glGenFramebuffers(1, &fbo);
@@ -298,20 +271,24 @@ ShadingPass::ShadingPass(unsigned int width, unsigned int height)
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shading_tex, 0);
     glDrawBuffers(1, attachments);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    cube_vao = createSkyboxVAO();
 }
 
-void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, unsigned int skybox_tex, bool draw_skybox, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance)
+void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, Cubemap* cubemap, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance)
 {
     ZoneScopedN("Shading pass");
     TracyGpuZone("Shading pass");
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-    if (draw_skybox) {
-        glUseProgram(draw_program.id());
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, skybox_tex);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+    if (cubemap) {
+
+        glBindVertexArray(cube_vao);
+        glUseProgram(skybox_program.id());
+        glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix()))));
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap->id());
+        glDrawArrays(GL_TRIANGLES, 0, 36);
     }
 
     static float lightPos[3] = { 4.f, 1.f, 6.f };
@@ -413,12 +390,8 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
 
     ssao_pass.execute(camera, geometry_pass.position_tex, geometry_pass.normal_tex, geometry_pass.rough_met_tex);
 
-    if (skybox != nullptr) {
-        skybox_pass.execute(camera, skybox);
-    }
-
     // === SHADING PASS ===
-    shading_pass.execute(camera, lightDir, lightMatrix, skybox_pass.skybox_tex, skybox != nullptr, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
+    shading_pass.execute(camera, lightDir, lightMatrix, skybox, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
 
     if (use_taa) {
         // === TAA PASS ===
@@ -455,9 +428,6 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
         display_tex = ssao_pass.ssao_tex;
         break;
     case 7:
-        display_tex = skybox_pass.skybox_tex;
-        break;
-    case 8:
         display_tex = shadow_pass.shadow_tex;
         break;
     }

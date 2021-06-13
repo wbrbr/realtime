@@ -35,19 +35,6 @@ private:
     unsigned int fbo;
 };
 
-class SkyboxPass {
-public:
-    SkyboxPass(unsigned int width, unsigned int height);
-    void execute(const Camera& camera, Cubemap* cubemap);
-
-    unsigned int skybox_tex;
-
-private:
-    Shader program;
-    unsigned int cube_vao;
-    unsigned int fbo;
-};
-
 class SSAOPass {
 public:
     SSAOPass(unsigned int width, unsigned int height);
@@ -65,14 +52,17 @@ private:
 class ShadingPass {
 public:
     ShadingPass(unsigned int width, unsigned int height);
-    void execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, unsigned int skybox_tex, bool draw_skybox, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance);
+    void execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, Cubemap* cubemap, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance);
 
     unsigned int shading_tex;
+    unsigned int fbo;
 
 private:
-    unsigned int fbo;
     Shader draw_program;
     Shader shading_program;
+
+    Shader skybox_program;
+    unsigned int cube_vao;
 };
 
 class TAAPass {
@@ -103,7 +93,6 @@ private:
     unsigned int width, height;
     GeometryPass geometry_pass;
     ShadowPass shadow_pass;
-    SkyboxPass skybox_pass;
     SSAOPass ssao_pass;
     ShadingPass shading_pass;
     TAAPass taa_pass;
