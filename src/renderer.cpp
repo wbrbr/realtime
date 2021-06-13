@@ -237,6 +237,8 @@ SSAOPass::SSAOPass(unsigned int width, unsigned int height)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     enabled = true;
+    radius = .03;
+    bias = 0;
 }
 
 void SSAOPass::execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex)
@@ -255,6 +257,8 @@ void SSAOPass::execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int posi
     glUniformMatrix4fv(program.getLoc("worldtoview"), 1, GL_FALSE, glm::value_ptr(view_mat));
     glUniformMatrix4fv(program.getLoc("projection"), 1, GL_FALSE, glm::value_ptr(proj_mat));
     glUniform3fv(program.getLoc("samples"), 64, reinterpret_cast<float*>(samples.data()));
+    glUniform1f(program.getLoc("radius"), radius);
+    glUniform1f(program.getLoc("bias"), bias);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, position_tex);
@@ -271,6 +275,8 @@ void SSAOPass::drawUI()
 {
     if (ImGui::CollapsingHeader("SSAO")) {
         ImGui::Checkbox("Enable SSAO", &enabled);
+        ImGui::DragFloat("Radius", &radius, 1.f, 0.f, 1.f);
+        ImGui::DragFloat("Bias", &bias, 1.f, 0.f, 1.f);
     }
 }
 
@@ -288,6 +294,9 @@ ShadingPass::ShadingPass(unsigned int width, unsigned int height)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     cube_vao = createSkyboxVAO();
+
+    ambient_intensity = 1.f;
+    shadow_bias = 1e-8;
 }
 
 void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, Cubemap* cubemap, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance)
@@ -313,10 +322,6 @@ void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 li
         ImGui::DragFloat3("Light position", lightPos, 0.001f, -10.f, 10.f);
         ImGui::Separator();
     }
-    static float ambientIntensity = 1.f;
-    ImGui::DragFloat("Ambient intensity", &ambientIntensity, 0.01f, 0.f, 2.f);
-    static float shadowBias = 0.001f;
-    ImGui::SliderFloat("Shadow bias", &shadowBias, 0.f, 0.1f, "%.6f", 10.f);
 
     glUseProgram(shading_program.id());
     glUniform1i(shading_program.getLoc("pointLightsNum"), 1);
@@ -333,8 +338,8 @@ void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 li
     glUniform3f(shading_program.getLoc("sunLight.dir"), lightDir.x, lightDir.y, lightDir.z);
     glUniform3f(shading_program.getLoc("sunLight.color"), 1.f, 1.f, 1.f);
     glUniformMatrix4fv(shading_program.getLoc("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightMatrix));
-    glUniform1f(shading_program.getLoc("ambientIntensity"), ambientIntensity);
-    glUniform1f(shading_program.getLoc("shadowBias"), shadowBias);
+    glUniform1f(shading_program.getLoc("ambientIntensity"), ambient_intensity);
+    glUniform1f(shading_program.getLoc("shadowBias"), shadow_bias);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, albedo_tex);
@@ -354,6 +359,14 @@ void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 li
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void ShadingPass::drawUI()
+{
+    if (ImGui::CollapsingHeader("Shading")) {
+        ImGui::DragFloat("Ambient intensity", &ambient_intensity, 0.01f, 0.f, 2.f);
+        ImGui::DragFloat("Shadow bias", &shadow_bias, 1.f, 0.f, 0.1f, "%.6f", 10.f);
+    }
 }
 
 void Renderer::render(std::vector<Object> objects, Camera camera)
@@ -377,6 +390,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     }
     shadow_pass.drawUI();
     ssao_pass.drawUI();
+    shading_pass.drawUI();
     taa_pass.drawUI();
 
     glm::vec3 lightDir = glm::normalize(glm::vec3(0.f, -1.f, 0.f));

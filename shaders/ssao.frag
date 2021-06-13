@@ -12,6 +12,9 @@ uniform vec3 samples[64];
 uniform mat4 worldtoview;
 uniform mat4 projection; // view space to clip space
 
+uniform float radius;
+uniform float bias;
+
 void main()
 {
     vec3 randomvec = texture(noisetex, TexCoords * vec2(500., 300.)).rgb;
@@ -24,8 +27,6 @@ void main()
 
 
     float occlusion = 0.0;
-    const float radius = .03;
-    const float bias = .025;
     for (int i = 0; i < 64; i++)
     {
         vec3 sample = TBN * samples[i]; // transform to view space
@@ -41,7 +42,7 @@ void main()
         occlusion += (sampleDepth >= sample.z ? 1.0 : 0.0);
         float originalDepth = (worldtoview * texture(positiontex, TexCoords)).z;
         float rangeCheck = opaque > 0.1 ? smoothstep(0.0, 1.0, radius / abs(originalDepth - sampleDepth)) : 0.0;
-        occlusion += (sampleDepth >= sample.z ? 1.0 : 0.0) * rangeCheck;   
+        occlusion += (sampleDepth >= sample.z + bias ? 1.0 : 0.0) * rangeCheck;
     }
 
     occlusion = 1.0 - (occlusion / 64);

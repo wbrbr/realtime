@@ -52,12 +52,16 @@ private:
     Shader program;
     unsigned int noise_tex;
     std::vector<glm::vec3> samples;
+
+    float radius;
+    float bias;
 };
 
 class ShadingPass {
 public:
     ShadingPass(unsigned int width, unsigned int height);
     void execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, Cubemap* cubemap, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance);
+    void drawUI();
 
     unsigned int shading_tex;
     unsigned int fbo;
@@ -68,6 +72,9 @@ private:
 
     Shader skybox_program;
     unsigned int cube_vao;
+
+    float ambient_intensity;
+    float shadow_bias;
 };
 
 class TAAPass {
