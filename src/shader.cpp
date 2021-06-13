@@ -25,6 +25,7 @@ unsigned int loadShaderFromSource(unsigned int type, const char* source)
         } else {
             std::cerr << "Fragment:" << shader_log << std::endl;
         }
+        exit(1);
     }
 
     return shader;

@@ -9,7 +9,7 @@
 class GeometryPass {
 public:
     GeometryPass(unsigned int width, unsigned int height);
-    void execute(const std::vector<Object>& objects, const Camera& camera, TextureLoader* loader, glm::vec2 jitter);
+    void execute(const std::vector<Object>& objects, glm::mat4 clip_from_world, TextureLoader* loader);
 
     unsigned int albedo_tex;
     unsigned int normal_tex;
@@ -79,7 +79,7 @@ private:
 class TAAPass {
 public:
     TAAPass(unsigned int width, unsigned int height);
-    void execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex);
+    void execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex, glm::vec2 jitter);
 
     unsigned int taa_tex;
     unsigned int history_tex;
@@ -89,6 +89,9 @@ private:
     unsigned int fbo;
     Shader program;
     glm::mat4 history_clip_from_world;
+
+    bool update_history;
+    bool neighborhood_clamping;
 };
 
 class Renderer {

@@ -147,7 +147,7 @@ GeometryPass::GeometryPass(unsigned int width, unsigned int height): program("sh
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void GeometryPass::execute(const std::vector<Object>& objects, const Camera& camera, TextureLoader* loader, glm::vec2 jitter)
+void GeometryPass::execute(const std::vector<Object>& objects, glm::mat4 clip_from_world, TextureLoader* loader)
 {
 	ZoneScopedN("Geometry Pass")
 	TracyGpuZone("Geometry pass")
@@ -158,12 +158,9 @@ void GeometryPass::execute(const std::vector<Object>& objects, const Camera& cam
     glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glm::mat4 jitter_mat = glm::mat4(1);
-    jitter_mat[3][0] += jitter.x;
-    jitter_mat[3][1] += jitter.y;
 
     glUseProgram(program.id());
-    glUniformMatrix4fv(program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(jitter_mat * camera.getPerspectiveMatrix() * camera.getViewMatrix()));
+    glUniformMatrix4fv(program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(clip_from_world));
     glUniform1i(program.getLoc("albedoMap"), 0);
     glUniform1i(program.getLoc("roughnessMetallicMap"), 1);
     glUniform1i(program.getLoc("normalMap"), 2);
@@ -395,8 +392,17 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 
     ImGui::Checkbox("TAA", &use_taa);
 
-    glm::vec2 jitter = use_taa ? glm::vec2((drand48() - 0.5) * 2.f / (float)width, (drand48() - 0.5) * 2.f / (float)height) : glm::vec2(0);
-    geometry_pass.execute(objects, camera, loader, jitter);
+    glm::vec2 jitter_ndc = use_taa ? glm::vec2((drand48() - 0.5) * 1.f / (float)width, (drand48() - 0.5) * 1.f / (float)height) : glm::vec2(0);
+    glm::mat4 proj_mat = camera.getPerspectiveMatrix();
+    /*proj_mat[2][0] = jitter.x;
+    proj_mat[2][1] = jitter.y; */
+
+    glm::mat4 jitter_mat = glm::mat4(1);
+    jitter_mat[3][0] = jitter_ndc.x;
+    jitter_mat[3][1] = jitter_ndc.y;
+
+    glm::mat4 clip_from_world = jitter_mat * proj_mat * camera.getViewMatrix();
+    geometry_pass.execute(objects, clip_from_world, loader);
     shadow_pass.execute(objects, lightMatrix);
     glViewport(0, 0, width, height);
 
@@ -412,7 +418,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 
     if (use_taa) {
         // === TAA PASS ===
-        taa_pass.execute(camera, geometry_pass.position_tex, shading_pass.shading_tex);
+        taa_pass.execute(camera, geometry_pass.position_tex, shading_pass.shading_tex, jitter_ndc);
     }
 
     unsigned int final_tex = use_taa ? taa_pass.taa_tex : shading_pass.shading_tex;
@@ -443,6 +449,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 		glUniform1f(draw_depth_program.getLoc("zFar"), zFar);
     } else {
         glUseProgram(draw_program.id());
+        glUniform2f(draw_program.getLoc("jitter"), jitter_ndc.x, jitter_ndc.y);
 	}
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 }
@@ -463,9 +470,12 @@ TAAPass::TAAPass(unsigned int width, unsigned int height): width(width), height(
     glClearTexImage(history_tex, 0, GL_RGB, GL_FLOAT, black);
 
     history_clip_from_world = glm::mat4(1);
+
+    update_history = true;
+    neighborhood_clamping = true;
 }
 
-void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex)
+void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex, glm::vec2 jitter)
 {
     ZoneScopedN("TAA pass")
     TracyGpuZone("TAA pass")
@@ -487,14 +497,25 @@ void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned 
 
     glUniformMatrix4fv(program.getLoc("history_clip_from_world"), 1, GL_FALSE, glm::value_ptr(history_clip_from_world));
 
+    glm::vec2 pixel_size(1.f / (float)width, 1.f / (float)height);
+    glUniform2f(program.getLoc("pixel_size"), pixel_size.x, pixel_size.y);
+
+    glUniform2f(program.getLoc("jitter"), jitter.x, jitter.y);
+
+    ImGui::Checkbox("Neighborhood clamping", &neighborhood_clamping);
+    glUniform1i(program.getLoc("neighborhood_clamping"), neighborhood_clamping);
+
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     history_clip_from_world = camera.getPerspectiveMatrix() * camera.getViewMatrix();
 
-    // copy frame to history
-    glCopyImageSubData(taa_tex, GL_TEXTURE_2D, 0, 0, 0, 0, history_tex, GL_TEXTURE_2D, 0, 0, 0, 0, width, height, 1);
+    ImGui::Checkbox("Update history buffer", &update_history);
+
+    if (update_history) {
+        glCopyImageSubData(taa_tex, GL_TEXTURE_2D, 0, 0, 0, 0, history_tex, GL_TEXTURE_2D, 0, 0, 0, 0, width, height, 1);
+    }
 }
 
 void Renderer::setSkybox(Cubemap* skybox)
