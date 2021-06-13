@@ -41,7 +41,7 @@ private:
 class SSAOPass {
 public:
     SSAOPass(unsigned int width, unsigned int height);
-    void execute(const Camera& camera, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex);
+    void execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex);
     void drawUI();
 
     unsigned int ssao_tex;

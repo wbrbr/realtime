@@ -239,7 +239,7 @@ SSAOPass::SSAOPass(unsigned int width, unsigned int height)
     enabled = true;
 }
 
-void SSAOPass::execute(const Camera& camera, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex)
+void SSAOPass::execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex)
 {
     ZoneScopedN("SSAO");
     TracyGpuZone("SSAO");
@@ -252,8 +252,8 @@ void SSAOPass::execute(const Camera& camera, unsigned int position_tex, unsigned
     glUniform1i(program.getLoc("normaltex"), 1);
     glUniform1i(program.getLoc("noisetex"), 2);
     glUniform1i(program.getLoc("roughmettex"), 3);
-    glUniformMatrix4fv(program.getLoc("worldtoview"), 1, GL_FALSE, glm::value_ptr(camera.getViewMatrix()));
-    glUniformMatrix4fv(program.getLoc("projection"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix()));
+    glUniformMatrix4fv(program.getLoc("worldtoview"), 1, GL_FALSE, glm::value_ptr(view_mat));
+    glUniformMatrix4fv(program.getLoc("projection"), 1, GL_FALSE, glm::value_ptr(proj_mat));
     glUniform3fv(program.getLoc("samples"), 64, reinterpret_cast<float*>(samples.data()));
 
     glActiveTexture(GL_TEXTURE0);
@@ -417,7 +417,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     glDisable(GL_DEPTH_TEST);
 
     if (ssao_pass.enabled) {
-        ssao_pass.execute(camera, geometry_pass.position_tex, geometry_pass.normal_tex, geometry_pass.rough_met_tex);
+        ssao_pass.execute(camera.getViewMatrix(), jitter_mat * proj_mat, geometry_pass.position_tex, geometry_pass.normal_tex, geometry_pass.rough_met_tex);
     } else {
         float white[] = { 1.f, 1.f, 1.f, 1.f };
         glBindFramebuffer(GL_FRAMEBUFFER, ssao_pass.fbo);
