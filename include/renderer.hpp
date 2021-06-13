@@ -28,24 +28,28 @@ class ShadowPass {
 public:
     ShadowPass();
     void execute(const std::vector<Object>& objects, glm::mat4 lightMatrix);
+    void drawUI();
 
     unsigned int shadow_tex;
+    bool enabled;
+    unsigned int fbo;
 
 private:
     Shader program;
-    unsigned int fbo;
 };
 
 class SSAOPass {
 public:
     SSAOPass(unsigned int width, unsigned int height);
     void execute(const Camera& camera, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex);
+    void drawUI();
 
     unsigned int ssao_tex;
+    bool enabled;
+    unsigned int fbo;
 
 private:
     Shader program;
-    unsigned int fbo;
     unsigned int noise_tex;
     std::vector<glm::vec3> samples;
 };
@@ -70,7 +74,9 @@ class TAAPass {
 public:
     TAAPass(unsigned int width, unsigned int height);
     void execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex, glm::vec2 jitter);
+    void drawUI();
 
+    bool enabled;
     unsigned int taa_tex;
     unsigned int history_tex;
 
@@ -106,7 +112,5 @@ private:
     TextureLoader* loader;
 
     HaltonSequence halton;
-
-    bool use_taa;
 };
 #endif

@@ -56,7 +56,7 @@ GLFWwindow* initWindow()
     }
     glfwWindowHint(GLFW_RESIZABLE, 0);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 
@@ -73,8 +73,8 @@ GLFWwindow* initWindow()
         glfwTerminate();
         return nullptr;
     }
-    if (!gl3wIsSupported(4, 3)) {
-        std::cout << "OpenGL 4.3 not supported" << std::endl;
+    if (!gl3wIsSupported(4, 4)) {
+        std::cout << "OpenGL 4.4 not supported" << std::endl;
         return nullptr;
     }
 

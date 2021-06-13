@@ -122,8 +122,6 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
     , irradiance("res/newport/irr_posy.hdr", "res/newport/irr_negy.hdr", "res/newport/irr_negx.hdr", "res/newport/irr_posx.hdr", "res/newport/irr_negz.hdr", "res/newport/irr_posz.hdr")
     , loader(&loader)
 {
-
-    use_taa = true;
 }
 
 GeometryPass::GeometryPass(unsigned int width, unsigned int height)
@@ -190,6 +188,8 @@ ShadowPass::ShadowPass()
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    enabled = true;
 }
 
 void ShadowPass::execute(const std::vector<Object>& objects, glm::mat4 lightMatrix)
@@ -215,6 +215,13 @@ void ShadowPass::execute(const std::vector<Object>& objects, glm::mat4 lightMatr
     glCullFace(GL_BACK);
 }
 
+void ShadowPass::drawUI()
+{
+    if (ImGui::CollapsingHeader("Shadow mapping")) {
+        ImGui::Checkbox("Enable shadow mapping", &enabled);
+    }
+}
+
 SSAOPass::SSAOPass(unsigned int width, unsigned int height)
     : program("shaders/final.vert", "shaders/ssao.frag")
 {
@@ -228,13 +235,14 @@ SSAOPass::SSAOPass(unsigned int width, unsigned int height)
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssao_tex, 0);
     glDrawBuffers(1, attachments);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    enabled = true;
 }
 
 void SSAOPass::execute(const Camera& camera, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex)
 {
     ZoneScopedN("SSAO");
     TracyGpuZone("SSAO");
-    glDisable(GL_DEPTH_TEST);
     // === SSAO PASS ===
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     // glClearColor(1., 1., 1., 1.);
@@ -257,6 +265,13 @@ void SSAOPass::execute(const Camera& camera, unsigned int position_tex, unsigned
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, rough_met_tex);
     glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
+void SSAOPass::drawUI()
+{
+    if (ImGui::CollapsingHeader("SSAO")) {
+        ImGui::Checkbox("Enable SSAO", &enabled);
+    }
 }
 
 ShadingPass::ShadingPass(unsigned int width, unsigned int height)
@@ -351,6 +366,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     static float planeWidth = 1.f;
     static float planeHeight = 1.f;
     static glm::vec3 sunlightPosition(0.f, 10.f, 0.f);
+    ImGui::Text("Position: (%f, %f, %f)", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
     if (ImGui::CollapsingHeader("Directional light")) {
         ImGui::DragFloat3("Position", glm::value_ptr(sunlightPosition));
         ImGui::DragFloat("Near plane", &zNear);
@@ -359,6 +375,10 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
         ImGui::DragFloat("Plane height", &planeHeight);
         ImGui::Separator();
     }
+    shadow_pass.drawUI();
+    ssao_pass.drawUI();
+    taa_pass.drawUI();
+
     glm::vec3 lightDir = glm::normalize(glm::vec3(0.f, -1.f, 0.f));
     glm::vec3 up(0.f, 1.f, 0.f);
     if (glm::length(glm::cross(up, lightDir)) == 0.) {
@@ -370,13 +390,9 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     glm::mat4 lightView = glm::lookAt(sunlightPosition, lightDir, up);
     glm::mat4 lightMatrix = lightProjection * lightView;
 
-    ImGui::Text("Position: (%f, %f, %f)", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
-
-    ImGui::Checkbox("TAA", &use_taa);
-
     //glm::vec2 jitter_ndc = use_taa ? glm::vec2((drand48() - 0.5) * 2.f / (float)width, (drand48() - 0.5) * 2.f / (float)height) : glm::vec2(0);
-    glm::vec2 jitter_ndc = use_taa ? ((halton.next() - glm::vec2(0.5)) * 2.f / glm::vec2((float)width, (float)height))
-                                   : glm::vec2(0);
+    glm::vec2 jitter_ndc = taa_pass.enabled ? ((halton.next() - glm::vec2(0.5)) * 2.f / glm::vec2((float)width, (float)height))
+                                            : glm::vec2(0);
     glm::mat4 proj_mat = camera.getPerspectiveMatrix();
     /*proj_mat[2][0] = jitter.x;
     proj_mat[2][1] = jitter.y; */
@@ -387,20 +403,37 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
 
     glm::mat4 clip_from_world = jitter_mat * proj_mat * camera.getViewMatrix();
     geometry_pass.execute(objects, clip_from_world, loader);
-    shadow_pass.execute(objects, lightMatrix);
+
+    if (shadow_pass.enabled) {
+        shadow_pass.execute(objects, lightMatrix);
+    } else {
+        float val = 1.f;
+        glBindFramebuffer(GL_FRAMEBUFFER, shadow_pass.fbo);
+        glClearBufferfv(GL_DEPTH, 0, &val);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
     glViewport(0, 0, width, height);
 
-    ssao_pass.execute(camera, geometry_pass.position_tex, geometry_pass.normal_tex, geometry_pass.rough_met_tex);
+    glDisable(GL_DEPTH_TEST);
+
+    if (ssao_pass.enabled) {
+        ssao_pass.execute(camera, geometry_pass.position_tex, geometry_pass.normal_tex, geometry_pass.rough_met_tex);
+    } else {
+        float white[] = { 1.f, 1.f, 1.f, 1.f };
+        glBindFramebuffer(GL_FRAMEBUFFER, ssao_pass.fbo);
+        glClearBufferfv(GL_COLOR, 0, white);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
 
     // === SHADING PASS ===
     shading_pass.execute(camera, lightDir, lightMatrix, skybox, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
 
-    if (use_taa) {
+    if (taa_pass.enabled) {
         // === TAA PASS ===
         taa_pass.execute(camera, geometry_pass.position_tex, shading_pass.shading_tex, jitter_ndc);
     }
 
-    unsigned int final_tex = use_taa ? taa_pass.taa_tex : shading_pass.shading_tex;
+    unsigned int final_tex = taa_pass.enabled ? taa_pass.taa_tex : shading_pass.shading_tex;
 
     // === DRAW TO SCREEN ===
     const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao", "skybox", "sunlight shadow map" };
@@ -470,6 +503,7 @@ TAAPass::TAAPass(unsigned int width, unsigned int height)
 
     update_history = true;
     neighborhood_clamping = true;
+    enabled = true;
 }
 
 void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex, glm::vec2 jitter)
@@ -499,7 +533,6 @@ void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned 
 
     glUniform2f(program.getLoc("jitter_ndc"), jitter.x, jitter.y);
 
-    ImGui::Checkbox("Neighborhood clamping", &neighborhood_clamping);
     glUniform1i(program.getLoc("neighborhood_clamping"), neighborhood_clamping);
 
     glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -508,10 +541,17 @@ void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned 
 
     history_clip_from_world = camera.getPerspectiveMatrix() * camera.getViewMatrix();
 
-    ImGui::Checkbox("Update history buffer", &update_history);
-
     if (update_history) {
         glCopyImageSubData(taa_tex, GL_TEXTURE_2D, 0, 0, 0, 0, history_tex, GL_TEXTURE_2D, 0, 0, 0, 0, width, height, 1);
+    }
+}
+
+void TAAPass::drawUI()
+{
+    if (ImGui::CollapsingHeader("TAA")) {
+        ImGui::Checkbox("Enable TAA", &enabled);
+        ImGui::Checkbox("Neighborhood clamping", &neighborhood_clamping);
+        ImGui::Checkbox("Update history buffer", &update_history);
     }
 }
 
