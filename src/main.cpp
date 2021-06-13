@@ -354,6 +354,7 @@ int main(int argc, char** argv)
 
         renderer.render(objects, camera);
         ImGui::Text("FPS: %.1f", imio.Framerate);
+
         ImGui::End();
 
         //ImGui::ShowDemoWindow();
@@ -367,8 +368,8 @@ int main(int argc, char** argv)
             ZoneScopedN("Buffer swap");
             glfwSwapBuffers(window);
         }
-        FrameMark
-            TracyGpuCollect
+        FrameMark;
+        TracyGpuCollect;
     }
 
     ImGui_ImplOpenGL3_Shutdown();

@@ -21,7 +21,8 @@ target_include_directories(realtime PRIVATE "${PROJECT_SOURCE_DIR}/include"
                     "${PROJECT_SOURCE_DIR}/external/gl3w/include"
                     "${PROJECT_SOURCE_DIR}/external/glm/include"
                     "${PROJECT_SOURCE_DIR}/external/imgui/include"
-                    "${PROJECT_SOURCE_DIR}/external/tracy")
+                    "${PROJECT_SOURCE_DIR}/external/tracy"
+                    "${PROJECT_SOURCE_DIR}/external/stb_include")
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)

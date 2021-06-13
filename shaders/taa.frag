@@ -8,12 +8,12 @@ uniform sampler2D world_positions;
 
 uniform mat4 history_clip_from_world;
 uniform vec2 pixel_size;
-uniform vec2 jitter;
+uniform vec2 jitter_ndc;
 uniform bool neighborhood_clamping;
 
 void main() 
 {
-    vec3 current_color = texture(current, TexCoords + jitter / 2).rgb;
+    vec3 current_color = texture(current, TexCoords + jitter_ndc / 2).rgb;
     vec3 p_world = texture(world_positions, TexCoords).xyz;
 
     vec4 history_clip = history_clip_from_world * vec4(p_world, 1);
@@ -25,11 +25,12 @@ void main()
     }
 
 
-    vec3 min_rgb = texture(current, TexCoords + jitter / 2).rgb;
+    vec3 min_rgb = texture(current, TexCoords + jitter_ndc / 2).rgb;
     vec3 max_rgb = min_rgb;
     for (int i = -1; i <= 1; i++) {
         for (int j = -1; j <= 1; j++) {
-            vec2 uv = TexCoords + jitter / 2 + vec2(i,j) * pixel_size;
+            vec2 uv = TexCoords + vec2(i,j) * pixel_size;
+            uv += jitter_ndc / 2;
 
             vec3 c = texture(current, uv).rgb;
             min_rgb = min(min_rgb, c);

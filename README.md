@@ -16,3 +16,7 @@ Written in C++ using OpenGL.
 - Diffuse environment lighting
 
 ![](https://i.imgur.com/GDBCQPG.png)
+
+- Anti-aliasing with temporal supersampling (TAA)
+
+![No AA / TAA comparison](https://i.imgur.com/HFz8loe.png)

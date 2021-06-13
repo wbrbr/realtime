@@ -397,7 +397,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
 
     ImGui::Checkbox("TAA", &use_taa);
 
-    glm::vec2 jitter_ndc = use_taa ? glm::vec2((drand48() - 0.5) * 1.f / (float)width, (drand48() - 0.5) * 1.f / (float)height) : glm::vec2(0);
+    glm::vec2 jitter_ndc = use_taa ? glm::vec2((drand48() - 0.5) * 2.f / (float)width, (drand48() - 0.5) * 2.f / (float)height) : glm::vec2(0);
     glm::mat4 proj_mat = camera.getPerspectiveMatrix();
     /*proj_mat[2][0] = jitter.x;
     proj_mat[2][1] = jitter.y; */
@@ -525,7 +525,7 @@ void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned 
     glm::vec2 pixel_size(1.f / (float)width, 1.f / (float)height);
     glUniform2f(program.getLoc("pixel_size"), pixel_size.x, pixel_size.y);
 
-    glUniform2f(program.getLoc("jitter"), jitter.x, jitter.y);
+    glUniform2f(program.getLoc("jitter_ndc"), jitter.x, jitter.y);
 
     ImGui::Checkbox("Neighborhood clamping", &neighborhood_clamping);
     glUniform1i(program.getLoc("neighborhood_clamping"), neighborhood_clamping);
