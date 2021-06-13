@@ -1,6 +1,7 @@
 #ifndef RENDERER_HPP
 #define RENDERER_HPP
 #include "camera.hpp"
+#include "halton.hpp"
 #include "object.hpp"
 #include "shader.hpp"
 #include "texture_loader.hpp"
@@ -103,6 +104,8 @@ private:
     Cubemap irradiance;
 
     TextureLoader* loader;
+
+    HaltonSequence halton;
 
     bool use_taa;
 };

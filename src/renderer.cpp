@@ -374,7 +374,9 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
 
     ImGui::Checkbox("TAA", &use_taa);
 
-    glm::vec2 jitter_ndc = use_taa ? glm::vec2((drand48() - 0.5) * 2.f / (float)width, (drand48() - 0.5) * 2.f / (float)height) : glm::vec2(0);
+    //glm::vec2 jitter_ndc = use_taa ? glm::vec2((drand48() - 0.5) * 2.f / (float)width, (drand48() - 0.5) * 2.f / (float)height) : glm::vec2(0);
+    glm::vec2 jitter_ndc = use_taa ? ((halton.next() - glm::vec2(0.5)) * 2.f / glm::vec2((float)width, (float)height))
+                                   : glm::vec2(0);
     glm::mat4 proj_mat = camera.getPerspectiveMatrix();
     /*proj_mat[2][0] = jitter.x;
     proj_mat[2][1] = jitter.y; */
