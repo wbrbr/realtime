@@ -2,11 +2,10 @@
 #define MATERIAL_HPP
 #include "texture_loader.hpp"
 
-class TextureMaterial
-{
+class TextureMaterial {
 public:
-	TexID albedoMap;
+    TexID albedoMap;
     TexID roughnessMetallicMap;
-	TexID normalMap;
+    TexID normalMap;
 };
 #endif

@@ -1,8 +1,8 @@
 #ifndef TEXTURE_LOADER_HPP
 #define TEXTURE_LOADER_HPP
-#include <vector>
-#include <utility>
 #include "texture.hpp"
+#include <utility>
+#include <vector>
 
 struct TexID {
     size_t id;

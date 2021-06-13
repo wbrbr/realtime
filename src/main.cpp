@@ -1,34 +1,34 @@
 #include "GL/gl3w.h"
 #include "GLFW/glfw3.h"
-#include "stb_image.h"
-#include <iostream>
-#include <algorithm>
-#include <filesystem>
-#include <cassert>
+#include "Tracy.hpp"
+#include "TracyOpenGL.hpp"
 #include "assimp/Importer.hpp"
-#include "assimp/scene.h"
-#include "assimp/postprocess.h"
 #include "assimp/pbrmaterial.h"
-#include "glm/vec3.hpp"
-#include "glm/mat4x4.hpp"
+#include "assimp/postprocess.h"
+#include "assimp/scene.h"
+#include "camera.hpp"
+#include "glm/geometric.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
-#include "glm/geometric.hpp"
 #include "glm/gtx/rotate_vector.hpp"
-#include <optional>
+#include "glm/mat4x4.hpp"
+#include "glm/vec3.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-#include "shader.hpp"
-#include "camera.hpp"
+#include "light.hpp"
 #include "mesh.hpp"
 #include "object.hpp"
-#include "light.hpp"
-#include "texture.hpp"
 #include "renderer.hpp"
-#include "Tracy.hpp"
-#include "TracyOpenGL.hpp"
+#include "shader.hpp"
+#include "stb_image.h"
+#include "texture.hpp"
 #include "texture_loader.hpp"
+#include <algorithm>
+#include <cassert>
+#include <filesystem>
+#include <iostream>
+#include <optional>
 
 #define DBG_MODE 1
 
@@ -51,19 +51,17 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 GLFWwindow* initWindow()
 {
-    if (!glfwInit())
-    {
+    if (!glfwInit()) {
         return nullptr;
     }
     glfwWindowHint(GLFW_RESIZABLE, 0);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint( GLFW_OPENGL_DEBUG_CONTEXT, true );
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 
     GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Real-time rendering", NULL, NULL);
-    if (!window)
-    {
+    if (!window) {
         glfwTerminate();
         return nullptr;
     }
@@ -71,21 +69,19 @@ GLFWwindow* initWindow()
     glfwSetKeyCallback(window, key_callback);
     glfwMakeContextCurrent(window);
 
-    if (gl3wInit())
-    {
+    if (gl3wInit()) {
         glfwTerminate();
         return nullptr;
     }
-    if (!gl3wIsSupported(4, 3))
-    {
+    if (!gl3wIsSupported(4, 3)) {
         std::cout << "OpenGL 4.3 not supported" << std::endl;
         return nullptr;
     }
-    
+
     return window;
 }
 
-void dbgcallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *msg, const void *data)
+void dbgcallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* msg, const void* data)
 {
     if (DBG_MODE && type == GL_DEBUG_TYPE_ERROR) {
         std::cerr << "debug call: " << msg << std::endl;
@@ -94,25 +90,21 @@ void dbgcallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei
 
 TexID loadTextureFromPath(aiString prefix, aiString fileName, const aiScene* scene, TextureLoader& loader)
 {
-    ZoneScoped
+    ZoneScoped;
     // embedded texture
-    if (fileName.C_Str()[0] == '*')
-    {
-        const aiTexture *embeddedTex = scene->GetEmbeddedTexture(fileName.C_Str());
+    if (fileName.C_Str()[0] == '*') {
+        const aiTexture* embeddedTex = scene->GetEmbeddedTexture(fileName.C_Str());
         assert(embeddedTex->mHeight == 0); // must be a compressed texture
         int w, h, n;
-        unsigned char *data = stbi_load_from_memory((unsigned char *)embeddedTex->pcData, embeddedTex->mWidth, &w, &h, &n, 4);
-        if (data == nullptr)
-        {
+        unsigned char* data = stbi_load_from_memory((unsigned char*)embeddedTex->pcData, embeddedTex->mWidth, &w, &h, &n, 4);
+        if (data == nullptr) {
             std::cerr << "Embedded texture loading failed: " << stbi_failure_reason() << std::endl;
         }
-        return loader.addMem(data,w,h);
-    }
-    else
-    {
+        return loader.addMem(data, w, h);
+    } else {
         aiString texPath = prefix;
         texPath.Append(fileName.C_Str());
-        std::string p{texPath.C_Str()};
+        std::string p { texPath.C_Str() };
         std::replace(p.begin(), p.end(), '\\', '/');
         return loader.queueFile(p);
     }
@@ -120,7 +112,8 @@ TexID loadTextureFromPath(aiString prefix, aiString fileName, const aiScene* sce
 
 Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index, TextureLoader& loader)
 {
-    ZoneScoped
+    ZoneScoped;
+
     aiMesh* m = scene->mMeshes[mesh_index];
 
     unsigned int vao, vbo, ebo;
@@ -133,18 +126,16 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
     glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 3 * sizeof(float), m->mNumVertices * 3 * sizeof(float), m->mNormals);
     if (m->HasTextureCoords(0)) {
         float* texcoords = static_cast<float*>(malloc(m->mNumVertices * 2 * sizeof(float)));
-        for (unsigned int i = 0; i < m->mNumVertices; i++)
-        {
+        for (unsigned int i = 0; i < m->mNumVertices; i++) {
             auto vec = m->mTextureCoords[0][i];
-            texcoords[2*i] = vec.x;
-            texcoords[2*i+1] = vec.y;
+            texcoords[2 * i] = vec.x;
+            texcoords[2 * i + 1] = vec.y;
         }
         glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 6 * sizeof(float), m->mNumVertices * 2 * sizeof(float), texcoords);
         free(texcoords);
     } else {
         float* zero = static_cast<float*>(malloc(m->mNumVertices * 2 * sizeof(float)));
-        for (unsigned int i = 0; i < m->mNumVertices * 2; i++)
-        {
+        for (unsigned int i = 0; i < m->mNumVertices * 2; i++) {
             zero[i] = 0.f;
         }
         glBufferSubData(GL_ARRAY_BUFFER, m->mNumVertices * 6 * sizeof(float), m->mNumVertices * 2 * sizeof(float), zero);
@@ -156,10 +147,9 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
     } else {
         std::vector<glm::vec3> tangents;
         std::vector<glm::vec3> bitangents;
-        for (unsigned int i = 0; i < m->mNumVertices; i++)
-        {
+        for (unsigned int i = 0; i < m->mNumVertices; i++) {
             glm::vec3 n(m->mNormals[i].x, m->mNormals[i].y, m->mNormals[i].z);
-            glm::vec3 random_vector = glm::vec3((float)rand()/(float)RAND_MAX, (float)rand()/(float)RAND_MAX, (float)rand()/(float)RAND_MAX);
+            glm::vec3 random_vector = glm::vec3((float)rand() / (float)RAND_MAX, (float)rand() / (float)RAND_MAX, (float)rand() / (float)RAND_MAX);
             glm::vec3 tangent = glm::normalize(random_vector - n * dot(n, random_vector));
             glm::vec3 bitangent = glm::cross(n, tangent);
             tangents.push_back(tangent);
@@ -174,13 +164,13 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
     unsigned int* indices = static_cast<unsigned int*>(malloc(m->mNumFaces * 3 * sizeof(unsigned int)));
     for (unsigned int i = 0; i < m->mNumFaces; i++) {
         aiFace f = m->mFaces[i];
-        indices[3*i] = f.mIndices[0];
-        indices[3*i+1] = f.mIndices[1];
-        indices[3*i+2] = f.mIndices[2];
+        indices[3 * i] = f.mIndices[0];
+        indices[3 * i + 1] = f.mIndices[1];
+        indices[3 * i + 2] = f.mIndices[2];
     }
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m->mNumFaces*3*sizeof(unsigned int), indices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m->mNumFaces * 3 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
     free(indices);
-    
+
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(m->mNumVertices * 3 * sizeof(float)));
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid*)(m->mNumVertices * 6 * sizeof(float)));
@@ -197,7 +187,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
     mesh.vao = vao;
     mesh.vbo = vbo;
     mesh.numVertices = m->mNumVertices;
-    mesh.numIndices = 3*m->mNumFaces;
+    mesh.numIndices = 3 * m->mNumFaces;
 
     Object obj;
     obj.mesh = mesh;
@@ -249,7 +239,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
 
 std::vector<Object> loadFile(std::string path, TextureLoader& loader)
 {
-    ZoneScoped
+    ZoneScoped;
     std::vector<Object> res;
 
     Assimp::Importer importer;
@@ -259,8 +249,7 @@ std::vector<Object> loadFile(std::string path, TextureLoader& loader)
         return res;
     }
 
-    for (unsigned int i = 0; i < scene->mNumMeshes; i++)
-    {
+    for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
         res.push_back(loadMesh(path, scene, i, loader));
     }
 
@@ -274,8 +263,7 @@ int main(int argc, char** argv)
         return 1;
     }
     GLFWwindow* window = initWindow();
-    if (!window)
-    {
+    if (!window) {
         return 1;
     }
 
@@ -299,13 +287,12 @@ int main(int argc, char** argv)
     camera.setPosition(glm::vec3(0.f, 0.f, 3.f));
     glfwSetWindowUserPointer(window, &camera);
 
-
     TextureLoader loader;
-	Renderer renderer(WIDTH, HEIGHT, loader);
+    Renderer renderer(WIDTH, HEIGHT, loader);
     Cubemap skybox("res/newport/_posy.hdr", "res/newport/_negy.hdr", "res/newport/_negx.hdr", "res/newport/_posx.hdr", "res/newport/_negz.hdr", "res/newport/_posz.hdr");
 
     renderer.setSkybox(&skybox);
-	std::vector<Object> objects = loadFile(argv[1], loader);
+    std::vector<Object> objects = loadFile(argv[1], loader);
     loader.load();
 
     double lastCursorX, lastCursorY;
@@ -314,8 +301,7 @@ int main(int argc, char** argv)
     glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
 
     float walkSpeed = .8f;
-    while (!glfwWindowShouldClose(window))
-    {
+    while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -366,24 +352,23 @@ int main(int argc, char** argv)
 
         camera.setTarget(camera.getPosition() + dir);
 
-		renderer.render(objects, camera);
+        renderer.render(objects, camera);
         ImGui::Text("FPS: %.1f", imio.Framerate);
         ImGui::End();
 
-        ImGui::ShowDemoWindow();
+        //ImGui::ShowDemoWindow();
         {
-            ZoneScopedN("ImGui render")
+            ZoneScopedN("ImGui render");
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
 
         {
-
-            ZoneScopedN("Buffer swap")
+            ZoneScopedN("Buffer swap");
             glfwSwapBuffers(window);
         }
         FrameMark
-        TracyGpuCollect
+            TracyGpuCollect
     }
 
     ImGui_ImplOpenGL3_Shutdown();

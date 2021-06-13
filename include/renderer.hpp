@@ -1,10 +1,10 @@
 #ifndef RENDERER_HPP
 #define RENDERER_HPP
-#include "object.hpp"
 #include "camera.hpp"
+#include "object.hpp"
 #include "shader.hpp"
-#include <vector>
 #include "texture_loader.hpp"
+#include <vector>
 
 class GeometryPass {
 public:
@@ -16,7 +16,6 @@ public:
     unsigned int rough_met_tex;
     unsigned int position_tex;
     unsigned int depth_texture;
-
 
 private:
     Shader program;
@@ -96,12 +95,12 @@ private:
 
 class Renderer {
 public:
-	Renderer(unsigned int width, unsigned int height, TextureLoader& loader);
-	void render(std::vector<Object> objects, Camera cam);
-	void setSkybox(Cubemap* skybox);
+    Renderer(unsigned int width, unsigned int height, TextureLoader& loader);
+    void render(std::vector<Object> objects, Camera cam);
+    void setSkybox(Cubemap* skybox);
 
 private:
-	unsigned int width, height;
+    unsigned int width, height;
     GeometryPass geometry_pass;
     ShadowPass shadow_pass;
     SkyboxPass skybox_pass;
@@ -111,10 +110,10 @@ private:
     Shader draw_program;
     Shader draw_depth_program;
 
-	Cubemap* skybox;
-	Cubemap irradiance;
+    Cubemap* skybox;
+    Cubemap irradiance;
 
-	TextureLoader* loader;
+    TextureLoader* loader;
 
     bool use_taa;
 };

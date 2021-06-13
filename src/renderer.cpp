@@ -1,134 +1,136 @@
 #include "renderer.hpp"
 #include "../include/GL/gl3w.h"
-#include "glm/gtc/type_ptr.hpp"
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
 #include "Tracy.hpp"
 #include "TracyOpenGL.hpp"
-#include <random>
-#include <iostream>
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
 #include "imgui.h"
+#include <iostream>
+#include <random>
 
 unsigned int createNoiseTexture()
 {
-	unsigned int noise_tex;
-	glGenTextures(1, &noise_tex);
-	std::vector<glm::vec3> noise;
-	std::uniform_real_distribution<float> dist(0., 1.);
-	std::default_random_engine gen;
-	for (unsigned int i = 0; i < 16; i++)
-	{
-		noise.push_back(glm::vec3(dist(gen) * 2. - 1.,
-								  dist(gen) * 2. - 1.,
-								  0.));
-	}
-	glGenTextures(1, &noise_tex);
-	glBindTexture(GL_TEXTURE_2D, noise_tex);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 4, 4, 0, GL_RGB, GL_FLOAT, noise.data());
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    unsigned int noise_tex;
+    glGenTextures(1, &noise_tex);
+    std::vector<glm::vec3> noise;
+    std::uniform_real_distribution<float> dist(0., 1.);
+    std::default_random_engine gen;
+    for (unsigned int i = 0; i < 16; i++) {
+        noise.push_back(glm::vec3(dist(gen) * 2. - 1.,
+            dist(gen) * 2. - 1.,
+            0.));
+    }
+    glGenTextures(1, &noise_tex);
+    glBindTexture(GL_TEXTURE_2D, noise_tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 4, 4, 0, GL_RGB, GL_FLOAT, noise.data());
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	return noise_tex;
+    return noise_tex;
 }
 
 void setupSamples(std::vector<glm::vec3>& samples)
 {
-	std::uniform_real_distribution<float> dist(0., 1.);
-	std::default_random_engine gen;
+    std::uniform_real_distribution<float> dist(0., 1.);
+    std::default_random_engine gen;
 
-	for (unsigned int i = 0; i < 64; i++)
-	{
-		// generate a point in the z > 0 hemisphere
-		glm::vec3 sample(dist(gen) * 2. - 1.,
-						 dist(gen) * 2. - 1.,
-						 dist(gen));
-		sample = glm::normalize(sample);
-		sample *= dist(gen);
-		samples.push_back(sample);
-		// TODO: weighting on scale
-	}
+    for (unsigned int i = 0; i < 64; i++) {
+        // generate a point in the z > 0 hemisphere
+        glm::vec3 sample(dist(gen) * 2. - 1.,
+            dist(gen) * 2. - 1.,
+            dist(gen));
+        sample = glm::normalize(sample);
+        sample *= dist(gen);
+        samples.push_back(sample);
+        // TODO: weighting on scale
+    }
 }
 
 unsigned int createSkyboxVAO()
 {
-	unsigned int vao, vbo;
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	float vertices[] = {
-      
-		-1.0f,  1.0f, -1.0f,
-		-1.0f, -1.0f, -1.0f,
-		1.0f, -1.0f, -1.0f,
-		1.0f, -1.0f, -1.0f,
-		1.0f,  1.0f, -1.0f,
-		-1.0f,  1.0f, -1.0f,
+    unsigned int vao, vbo;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    float vertices[] = {
 
-		-1.0f, -1.0f,  1.0f,
-		-1.0f, -1.0f, -1.0f,
-		-1.0f,  1.0f, -1.0f,
-		-1.0f,  1.0f, -1.0f,
-		-1.0f,  1.0f,  1.0f,
-		-1.0f, -1.0f,  1.0f,
+        -1.0f, 1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, 1.0f, -1.0f,
+        -1.0f, 1.0f, -1.0f,
 
-		1.0f, -1.0f, -1.0f,
-		1.0f, -1.0f,  1.0f,
-		1.0f,  1.0f,  1.0f,
-		1.0f,  1.0f,  1.0f,
-		1.0f,  1.0f, -1.0f,
-		1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, 1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, 1.0f, -1.0f,
+        -1.0f, 1.0f, -1.0f,
+        -1.0f, 1.0f, 1.0f,
+        -1.0f, -1.0f, 1.0f,
 
-		-1.0f, -1.0f,  1.0f,
-		-1.0f,  1.0f,  1.0f,
-		1.0f,  1.0f,  1.0f,
-		1.0f,  1.0f,  1.0f,
-		1.0f, -1.0f,  1.0f,
-		-1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
 
-		-1.0f,  1.0f, -1.0f,
-		1.0f,  1.0f, -1.0f,
-		1.0f,  1.0f,  1.0f,
-		1.0f,  1.0f,  1.0f,
-		-1.0f,  1.0f,  1.0f,
-		-1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f,
+        -1.0f, -1.0f, 1.0f,
 
-		-1.0f, -1.0f, -1.0f,
-		-1.0f, -1.0f,  1.0f,
-		1.0f, -1.0f, -1.0f,
-		1.0f, -1.0f, -1.0f,
-		-1.0f, -1.0f,  1.0f,
-		1.0f, -1.0f,  1.0f
-	};
+        -1.0f, 1.0f, -1.0f,
+        1.0f, 1.0f, -1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, -1.0f,
 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(0);
-	glBindVertexArray(0);
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f
+    };
 
-	return vao;
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+
+    return vao;
 }
 
-Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loader):
-				      width(width),
-					  height(height),
-                      geometry_pass(width, height),
-                      skybox_pass(width, height),
-                      ssao_pass(width, height),
-                      shading_pass(width, height),
-                      taa_pass(width, height),
-                      draw_program("shaders/final.vert", "shaders/draw.frag"),
-                      draw_depth_program("shaders/final.vert", "shaders/depthdraw.frag"),
-					  skybox(nullptr),
-					  irradiance("res/newport/irr_posy.hdr", "res/newport/irr_negy.hdr", "res/newport/irr_negx.hdr", "res/newport/irr_posx.hdr", "res/newport/irr_negz.hdr", "res/newport/irr_posz.hdr"),
-					  loader(&loader) {
+Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loader)
+    : width(width)
+    , height(height)
+    , geometry_pass(width, height)
+    , skybox_pass(width, height)
+    , ssao_pass(width, height)
+    , shading_pass(width, height)
+    , taa_pass(width, height)
+    , draw_program("shaders/final.vert", "shaders/draw.frag")
+    , draw_depth_program("shaders/final.vert", "shaders/depthdraw.frag")
+    , skybox(nullptr)
+    , irradiance("res/newport/irr_posy.hdr", "res/newport/irr_negy.hdr", "res/newport/irr_negx.hdr", "res/newport/irr_posx.hdr", "res/newport/irr_negz.hdr", "res/newport/irr_posz.hdr")
+    , loader(&loader)
+{
 
     use_taa = true;
 }
 
-GeometryPass::GeometryPass(unsigned int width, unsigned int height): program("shaders/deferred.vert", "shaders/deferred.frag"), width(width), height(height)
+GeometryPass::GeometryPass(unsigned int width, unsigned int height)
+    : program("shaders/deferred.vert", "shaders/deferred.frag")
+    , width(width)
+    , height(height)
 {
     glGenFramebuffers(1, &fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -149,15 +151,14 @@ GeometryPass::GeometryPass(unsigned int width, unsigned int height): program("sh
 
 void GeometryPass::execute(const std::vector<Object>& objects, glm::mat4 clip_from_world, TextureLoader* loader)
 {
-	ZoneScopedN("Geometry Pass")
-	TracyGpuZone("Geometry pass")
+    ZoneScopedN("Geometry Pass");
+    TracyGpuZone("Geometry pass");
 
-	// === GEOMETRY PASS ===
-	glEnable(GL_DEPTH_TEST);
-	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    // === GEOMETRY PASS ===
+    glEnable(GL_DEPTH_TEST);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glClearColor(0.0, 0.0, 0.0, 0.0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(program.id());
     glUniformMatrix4fv(program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(clip_from_world));
@@ -165,22 +166,23 @@ void GeometryPass::execute(const std::vector<Object>& objects, glm::mat4 clip_fr
     glUniform1i(program.getLoc("roughnessMetallicMap"), 1);
     glUniform1i(program.getLoc("normalMap"), 2);
 
-	for (auto obj : objects) {
-		glActiveTexture(GL_TEXTURE0 + 0);
-		glBindTexture(GL_TEXTURE_2D, loader->get(obj.material.albedoMap)->id());
-		glActiveTexture(GL_TEXTURE0 + 1);
-		glBindTexture(GL_TEXTURE_2D, loader->get(obj.material.roughnessMetallicMap)->id());
-		glActiveTexture(GL_TEXTURE0 + 2);
-		glBindTexture(GL_TEXTURE_2D, loader->get(obj.material.normalMap)->id());
+    for (auto obj : objects) {
+        glActiveTexture(GL_TEXTURE0 + 0);
+        glBindTexture(GL_TEXTURE_2D, loader->get(obj.material.albedoMap)->id());
+        glActiveTexture(GL_TEXTURE0 + 1);
+        glBindTexture(GL_TEXTURE_2D, loader->get(obj.material.roughnessMetallicMap)->id());
+        glActiveTexture(GL_TEXTURE0 + 2);
+        glBindTexture(GL_TEXTURE_2D, loader->get(obj.material.normalMap)->id());
 
-		glBindVertexArray(obj.mesh.vao);
+        glBindVertexArray(obj.mesh.vao);
         glUniformMatrix4fv(program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(obj.transform.getMatrix()));
 
-		glDrawElements(GL_TRIANGLES, obj.mesh.numIndices, GL_UNSIGNED_INT, (void*)0);
-	}
+        glDrawElements(GL_TRIANGLES, obj.mesh.numIndices, GL_UNSIGNED_INT, (void*)0);
+    }
 }
 
-ShadowPass::ShadowPass():  program("shaders/depth.vert", "shaders/depth.frag")
+ShadowPass::ShadowPass()
+    : program("shaders/depth.vert", "shaders/depth.frag")
 {
     shadow_tex = create_texture(2048, 2048, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
     glGenFramebuffers(1, &fbo);
@@ -193,29 +195,29 @@ ShadowPass::ShadowPass():  program("shaders/depth.vert", "shaders/depth.frag")
 
 void ShadowPass::execute(const std::vector<Object>& objects, glm::mat4 lightMatrix)
 {
-	ZoneScopedN("Shadow map")
-	TracyGpuZone("Shadow map")
-	// === DIRECTIONAL SHADOW MAP PASS ===
-	glViewport(0, 0, 2048, 2048);
-	glCullFace(GL_FRONT);
+    ZoneScopedN("Shadow map");
+    TracyGpuZone("Shadow map");
+    // === DIRECTIONAL SHADOW MAP PASS ===
+    glViewport(0, 0, 2048, 2048);
+    glCullFace(GL_FRONT);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-	glClear(GL_DEPTH_BUFFER_BIT);
-
+    glClear(GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(program.id());
 
     glUniformMatrix4fv(program.getLoc("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightMatrix));
 
-	for (auto obj : objects) {
-		glBindVertexArray(obj.mesh.vao);
+    for (auto obj : objects) {
+        glBindVertexArray(obj.mesh.vao);
         glUniformMatrix4fv(program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(obj.transform.getMatrix()));
-		glDrawElements(GL_TRIANGLES, obj.mesh.numIndices, GL_UNSIGNED_INT, (void*)0);
-	}
+        glDrawElements(GL_TRIANGLES, obj.mesh.numIndices, GL_UNSIGNED_INT, (void*)0);
+    }
 
-	glCullFace(GL_BACK);
+    glCullFace(GL_BACK);
 }
 
-SSAOPass::SSAOPass(unsigned int width, unsigned int height): program("shaders/final.vert", "shaders/ssao.frag")
+SSAOPass::SSAOPass(unsigned int width, unsigned int height)
+    : program("shaders/final.vert", "shaders/ssao.frag")
 {
     noise_tex = createNoiseTexture();
     setupSamples(samples);
@@ -231,13 +233,13 @@ SSAOPass::SSAOPass(unsigned int width, unsigned int height): program("shaders/fi
 
 void SSAOPass::execute(const Camera& camera, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex)
 {
-	ZoneScopedN("SSAO")
-	TracyGpuZone("SSAO")
-	glDisable(GL_DEPTH_TEST);
-	// === SSAO PASS ===
+    ZoneScopedN("SSAO");
+    TracyGpuZone("SSAO");
+    glDisable(GL_DEPTH_TEST);
+    // === SSAO PASS ===
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-	// glClearColor(1., 1., 1., 1.);
-	// glClear(GL_COLOR_BUFFER_BIT);
+    // glClearColor(1., 1., 1., 1.);
+    // glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(program.id());
     glUniform1i(program.getLoc("positiontex"), 0);
     glUniform1i(program.getLoc("normaltex"), 1);
@@ -247,18 +249,19 @@ void SSAOPass::execute(const Camera& camera, unsigned int position_tex, unsigned
     glUniformMatrix4fv(program.getLoc("projection"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix()));
     glUniform3fv(program.getLoc("samples"), 64, reinterpret_cast<float*>(samples.data()));
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, position_tex);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, normal_tex);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, noise_tex);
-	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, rough_met_tex);
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, position_tex);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, normal_tex);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, noise_tex);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, rough_met_tex);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-SkyboxPass::SkyboxPass(unsigned int width, unsigned int height): program("shaders/skybox.vert", "shaders/skybox.frag")
+SkyboxPass::SkyboxPass(unsigned int width, unsigned int height)
+    : program("shaders/skybox.vert", "shaders/skybox.frag")
 {
     cube_vao = createSkyboxVAO();
 
@@ -273,18 +276,20 @@ SkyboxPass::SkyboxPass(unsigned int width, unsigned int height): program("shader
 
 void SkyboxPass::execute(const Camera& camera, Cubemap* cubemap)
 {
-	ZoneScopedN("Skybox")
-	TracyGpuZone("Skybox")
+    ZoneScopedN("Skybox");
+    TracyGpuZone("Skybox");
 
-	glBindVertexArray(cube_vao);
+    glBindVertexArray(cube_vao);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glUseProgram(program.id());
     glUniformMatrix4fv(program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix()))));
     glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap->id());
-	glDrawArrays(GL_TRIANGLES, 0, 36);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
-ShadingPass::ShadingPass(unsigned int width, unsigned int height): draw_program("shaders/final.vert", "shaders/draw.frag"), shading_program("shaders/final.vert", "shaders/final.frag")
+ShadingPass::ShadingPass(unsigned int width, unsigned int height)
+    : draw_program("shaders/final.vert", "shaders/draw.frag")
+    , shading_program("shaders/final.vert", "shaders/final.frag")
 {
     unsigned int attachments[1] = { GL_COLOR_ATTACHMENT0 };
     glGenFramebuffers(1, &fbo);
@@ -297,30 +302,29 @@ ShadingPass::ShadingPass(unsigned int width, unsigned int height): draw_program(
 
 void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, unsigned int skybox_tex, bool draw_skybox, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance)
 {
-    ZoneScopedN("Shading pass")
-    TracyGpuZone("Shading pass")
+    ZoneScopedN("Shading pass");
+    TracyGpuZone("Shading pass");
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
     if (draw_skybox) {
-		glUseProgram(draw_program.id());
-		glActiveTexture(GL_TEXTURE0);
+        glUseProgram(draw_program.id());
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, skybox_tex);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
-	}
-	
-	static float lightPos[3] = {4.f, 1.f, 6.f };
-	static float lightColor[3] = {1.f, 1.f, 1.f};
-	if (ImGui::CollapsingHeader("Point light")) {
-		ImGui::ColorEdit3("Light color", lightColor);
-		ImGui::DragFloat3("Light position", lightPos, 0.001f, -10.f, 10.f);
-		ImGui::Separator();
-	}
-	static float ambientIntensity = 1.f;
-	ImGui::DragFloat("Ambient intensity", &ambientIntensity, 0.01f, 0.f, 2.f);
-	static float shadowBias = 0.001f;
-	ImGui::SliderFloat("Shadow bias", &shadowBias, 0.f, 0.1f, "%.6f", 10.f);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
 
+    static float lightPos[3] = { 4.f, 1.f, 6.f };
+    static float lightColor[3] = { 1.f, 1.f, 1.f };
+    if (ImGui::CollapsingHeader("Point light")) {
+        ImGui::ColorEdit3("Light color", lightColor);
+        ImGui::DragFloat3("Light position", lightPos, 0.001f, -10.f, 10.f);
+        ImGui::Separator();
+    }
+    static float ambientIntensity = 1.f;
+    ImGui::DragFloat("Ambient intensity", &ambientIntensity, 0.01f, 0.f, 2.f);
+    static float shadowBias = 0.001f;
+    ImGui::SliderFloat("Shadow bias", &shadowBias, 0.f, 0.1f, "%.6f", 10.f);
 
     glUseProgram(shading_program.id());
     glUniform1i(shading_program.getLoc("pointLightsNum"), 1);
@@ -340,53 +344,54 @@ void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 li
     glUniform1f(shading_program.getLoc("ambientIntensity"), ambientIntensity);
     glUniform1f(shading_program.getLoc("shadowBias"), shadowBias);
 
-	glActiveTexture(GL_TEXTURE0);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, albedo_tex);
-	glActiveTexture(GL_TEXTURE1);
+    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, normal_tex);
-	glActiveTexture(GL_TEXTURE2);
+    glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, shadow_tex);
-	glActiveTexture(GL_TEXTURE3);
+    glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, rough_met_tex);
-	glActiveTexture(GL_TEXTURE4);
+    glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, position_tex);
-	glActiveTexture(GL_TEXTURE5);
+    glActiveTexture(GL_TEXTURE5);
     glBindTexture(GL_TEXTURE_2D, ssao_tex);
-	glActiveTexture(GL_TEXTURE6);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, irradiance.id());
+    glActiveTexture(GL_TEXTURE6);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, irradiance.id());
 
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void Renderer::render(std::vector<Object> objects, Camera camera) {
-	ZoneScopedN("Render (CPU)")
-	TracyGpuZone("Render (GPU)")
+void Renderer::render(std::vector<Object> objects, Camera camera)
+{
+    ZoneScopedN("Render (CPU)");
+    TracyGpuZone("Render (GPU)");
 
-	static float zFar = 10.f;
-	static float zNear = 0.1f;
-	static float planeWidth = 1.f;
-	static float planeHeight = 1.f;
-	static glm::vec3 sunlightPosition(0.f, 10.f, 0.f);
-	if (ImGui::CollapsingHeader("Directional light")) {
-		ImGui::DragFloat3("Position", glm::value_ptr(sunlightPosition));
-		ImGui::DragFloat("Near plane", &zNear);
-		ImGui::DragFloat("Far plane", &zFar);
-		ImGui::DragFloat("Plane width", &planeWidth);
-		ImGui::DragFloat("Plane height", &planeHeight);
-		ImGui::Separator();
-	}
-	glm::vec3 lightDir = glm::normalize(glm::vec3(0.f, -1.f, 0.f));
-	glm::vec3 up(0.f, 1.f, 0.f);
-	if (glm::length(glm::cross(up, lightDir)) == 0.) {
-		float sg = glm::dot(up, lightDir);
-		up = sg * glm::vec3(0.f, 0.f, -1.f);
-	}
+    static float zFar = 10.f;
+    static float zNear = 0.1f;
+    static float planeWidth = 1.f;
+    static float planeHeight = 1.f;
+    static glm::vec3 sunlightPosition(0.f, 10.f, 0.f);
+    if (ImGui::CollapsingHeader("Directional light")) {
+        ImGui::DragFloat3("Position", glm::value_ptr(sunlightPosition));
+        ImGui::DragFloat("Near plane", &zNear);
+        ImGui::DragFloat("Far plane", &zFar);
+        ImGui::DragFloat("Plane width", &planeWidth);
+        ImGui::DragFloat("Plane height", &planeHeight);
+        ImGui::Separator();
+    }
+    glm::vec3 lightDir = glm::normalize(glm::vec3(0.f, -1.f, 0.f));
+    glm::vec3 up(0.f, 1.f, 0.f);
+    if (glm::length(glm::cross(up, lightDir)) == 0.) {
+        float sg = glm::dot(up, lightDir);
+        up = sg * glm::vec3(0.f, 0.f, -1.f);
+    }
 
-	glm::mat4 lightProjection = glm::ortho(-planeWidth, planeWidth, -planeHeight, planeHeight, zNear, zFar);
-	glm::mat4 lightView = glm::lookAt(sunlightPosition, lightDir, up);
-	glm::mat4 lightMatrix = lightProjection * lightView;
+    glm::mat4 lightProjection = glm::ortho(-planeWidth, planeWidth, -planeHeight, planeHeight, zNear, zFar);
+    glm::mat4 lightView = glm::lookAt(sunlightPosition, lightDir, up);
+    glm::mat4 lightMatrix = lightProjection * lightView;
 
     ImGui::Text("Position: (%f, %f, %f)", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
 
@@ -408,13 +413,12 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 
     ssao_pass.execute(camera, geometry_pass.position_tex, geometry_pass.normal_tex, geometry_pass.rough_met_tex);
 
-	if (skybox != nullptr) {
+    if (skybox != nullptr) {
         skybox_pass.execute(camera, skybox);
-	}
-
+    }
 
     // === SHADING PASS ===
-    shading_pass.execute(camera, lightDir, lightMatrix, skybox_pass.skybox_tex, skybox != nullptr, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex,  geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
+    shading_pass.execute(camera, lightDir, lightMatrix, skybox_pass.skybox_tex, skybox != nullptr, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
 
     if (use_taa) {
         // === TAA PASS ===
@@ -423,38 +427,59 @@ void Renderer::render(std::vector<Object> objects, Camera camera) {
 
     unsigned int final_tex = use_taa ? taa_pass.taa_tex : shading_pass.shading_tex;
 
-	// === DRAW TO SCREEN ===
-	const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao", "skybox", "sunlight shadow map"};
-	static int current = 0;
-	ImGui::Combo("Display", &current, items, 9);
-	unsigned int display_tex = 0;
-	switch (current) {
-        case 0: display_tex = final_tex; break;
-        case 1: display_tex = geometry_pass.albedo_tex; break;
-        case 2: display_tex = geometry_pass.normal_tex; break;
-        case 3: display_tex = geometry_pass.depth_texture; break;
-        case 4: display_tex = geometry_pass.rough_met_tex; break;
-        case 5: display_tex = geometry_pass.position_tex; break;
-        case 6: display_tex = ssao_pass.ssao_tex; break;
-        case 7: display_tex = skybox_pass.skybox_tex; break;
-        case 8: display_tex = shadow_pass.shadow_tex; break;
-	}
+    // === DRAW TO SCREEN ===
+    const char* items[] = { "final", "albedo", "normals", "depth", "roughness/metallic", "position", "ssao", "skybox", "sunlight shadow map" };
+    static int current = 0;
+    ImGui::Combo("Display", &current, items, 9);
+    unsigned int display_tex = 0;
+    switch (current) {
+    case 0:
+        display_tex = final_tex;
+        break;
+    case 1:
+        display_tex = geometry_pass.albedo_tex;
+        break;
+    case 2:
+        display_tex = geometry_pass.normal_tex;
+        break;
+    case 3:
+        display_tex = geometry_pass.depth_texture;
+        break;
+    case 4:
+        display_tex = geometry_pass.rough_met_tex;
+        break;
+    case 5:
+        display_tex = geometry_pass.position_tex;
+        break;
+    case 6:
+        display_tex = ssao_pass.ssao_tex;
+        break;
+    case 7:
+        display_tex = skybox_pass.skybox_tex;
+        break;
+    case 8:
+        display_tex = shadow_pass.shadow_tex;
+        break;
+    }
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, display_tex);
-	if (current == 8) {
-		glUseProgram(draw_depth_program.id());
-		glUniform1f(draw_depth_program.getLoc("zNear"), zNear);
-		glUniform1f(draw_depth_program.getLoc("zFar"), zFar);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, display_tex);
+    if (current == 8) {
+        glUseProgram(draw_depth_program.id());
+        glUniform1f(draw_depth_program.getLoc("zNear"), zNear);
+        glUniform1f(draw_depth_program.getLoc("zFar"), zFar);
     } else {
         glUseProgram(draw_program.id());
         glUniform2f(draw_program.getLoc("jitter"), jitter_ndc.x, jitter_ndc.y);
-	}
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-TAAPass::TAAPass(unsigned int width, unsigned int height): width(width), height(height), program("shaders/final.vert", "shaders/taa.frag")
+TAAPass::TAAPass(unsigned int width, unsigned int height)
+    : width(width)
+    , height(height)
+    , program("shaders/final.vert", "shaders/taa.frag")
 {
     unsigned int attachments[1] = { GL_COLOR_ATTACHMENT0 };
 
@@ -477,8 +502,8 @@ TAAPass::TAAPass(unsigned int width, unsigned int height): width(width), height(
 
 void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex, glm::vec2 jitter)
 {
-    ZoneScopedN("TAA pass")
-    TracyGpuZone("TAA pass")
+    ZoneScopedN("TAA pass");
+    TracyGpuZone("TAA pass");
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
     glUseProgram(program.id());
@@ -520,5 +545,5 @@ void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned 
 
 void Renderer::setSkybox(Cubemap* skybox)
 {
-	this->skybox = skybox;
+    this->skybox = skybox;
 }

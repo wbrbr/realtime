@@ -1,10 +1,10 @@
 #include "shader.hpp"
 #include "GL/gl3w.h"
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
-#include <string>
 #include <stdio.h>
+#include <string>
 
 unsigned int loadShaderFromSource(unsigned int type, const char* source)
 {
@@ -103,7 +103,8 @@ int Shader::getLoc(std::string name)
     auto it = m_locs.find(name);
     if (it == m_locs.end()) {
         int loc = glGetUniformLocation(m_id, name.c_str());
-        if (loc == -1) std::cerr << m_name << ": Invalid or inactive uniform: " << name << std::endl;
+        if (loc == -1)
+            std::cerr << m_name << ": Invalid or inactive uniform: " << name << std::endl;
         m_locs[name] = loc; // WARNING: will even cache -1
         return loc;
     } else {

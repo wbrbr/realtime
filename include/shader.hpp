@@ -6,8 +6,7 @@
 unsigned int loadShaderProgramFromSource(const char* vSource, const char* fSource);
 unsigned int loadShaderProgram(std::string vPath, std::string fPath);
 
-class Shader
-{
+class Shader {
 public:
     Shader(std::string vPath, std::string fPath);
     ~Shader();

@@ -2,7 +2,8 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtx/euler_angles.hpp"
 
-Transform::Transform(): scale(1.f, 1.f, 1.f)
+Transform::Transform()
+    : scale(1.f, 1.f, 1.f)
 {
 }
 

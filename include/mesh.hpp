@@ -1,8 +1,7 @@
 #ifndef MESH_HPP
 #define MESH_HPP
 
-struct Mesh
-{
+struct Mesh {
     unsigned int vao, vbo, numVertices, numIndices;
 };
 #endif

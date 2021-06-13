@@ -1,14 +1,12 @@
 #ifndef LIGHT_HPP
 #define LIGHT_HPP
 
-struct PointLight
-{
+struct PointLight {
     Transform transform;
     float intensity;
 };
 
-struct DirectionalLight
-{
+struct DirectionalLight {
     glm::vec3 direction;
     float intensity;
 };

@@ -1,11 +1,11 @@
 // don't define because assimp already has it
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 #include "texture.hpp"
-#include <iostream>
 #include "GL/gl3w.h"
 #include "Tracy.hpp"
 #include "TracyOpenGL.hpp"
+#include "stb_image.h"
+#include <iostream>
 
 void set_tex_params()
 {
@@ -27,14 +27,14 @@ unsigned int create_texture(unsigned int width, unsigned int height, int interna
 // IMAGE TEXTURE
 ImageTexture::ImageTexture(std::string path, bool srgb)
 {
-    ZoneScoped
+    ZoneScoped;
     ZoneText(path.c_str(), path.size());
     TracyGpuZone("ImageTexture::ImageTexture");
+
     int x, y, n;
     unsigned char* data = stbi_load(path.c_str(), &x, &y, &n, 4);
 
-    if (data == NULL)
-    {
+    if (data == NULL) {
         std::cerr << "Texture loading failed: " << stbi_failure_reason() << " (" << path << ")" << std::endl;
         exit(1);
     }
@@ -54,7 +54,7 @@ ImageTexture::ImageTexture(std::string path, bool srgb)
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-ImageTexture::ImageTexture(unsigned char *data, unsigned int width, unsigned int height)
+ImageTexture::ImageTexture(unsigned char* data, unsigned int width, unsigned int height)
 {
     ZoneScoped;
     TracyGpuZone("ImageTexture::ImageTexture");
@@ -94,8 +94,7 @@ unsigned int ImageTexture::height() const
 unsigned char* load(std::string path, int* x, int* y)
 {
     unsigned char* data = stbi_load(path.c_str(), x, y, nullptr, 4);
-    if (data == NULL)
-    {
+    if (data == NULL) {
         std::cerr << "Failed to load " << path << ": " << stbi_failure_reason() << std::endl;
     }
     return data;

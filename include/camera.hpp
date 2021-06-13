@@ -1,8 +1,8 @@
 #ifndef CAMERA_HPP
 #define CAMERA_HPP
-#include <glm/vec3.hpp>
-#include <glm/mat4x4.hpp>
 #include "transform.hpp"
+#include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
 
 class Camera {
 public:
@@ -12,8 +12,6 @@ public:
     glm::vec3 getTarget() const;
     glm::mat4 getViewMatrix() const;
     glm::mat4 getPerspectiveMatrix() const;
-
-
 
 private:
     glm::vec3 pos;

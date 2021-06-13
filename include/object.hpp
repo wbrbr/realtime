@@ -1,13 +1,12 @@
 #ifndef OBJECT_HPP
 #define OBJECT_HPP
-#include "transform.hpp"
-#include "mesh.hpp"
 #include "material.hpp"
+#include "mesh.hpp"
+#include "transform.hpp"
 
-struct Object
-{
+struct Object {
     Transform transform;
     Mesh mesh;
-	TextureMaterial material;
+    TextureMaterial material;
 };
 #endif

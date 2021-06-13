@@ -1,9 +1,9 @@
 #include "camera.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
 #include "glm/gtc/matrix_access.hpp"
-#include "glm/gtx/euler_angles.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/quaternion.hpp"
+#include "glm/gtc/type_ptr.hpp"
+#include "glm/gtx/euler_angles.hpp"
 #include <iostream>
 
 glm::mat4 Camera::getViewMatrix() const
@@ -13,7 +13,7 @@ glm::mat4 Camera::getViewMatrix() const
 
 glm::mat4 Camera::getPerspectiveMatrix() const
 {
-    return glm::perspective(glm::radians(60.f), 16.f/9.f, 0.1f, 2000.f);
+    return glm::perspective(glm::radians(60.f), 16.f / 9.f, 0.1f, 2000.f);
 }
 
 void Camera::setPosition(glm::vec3 v)

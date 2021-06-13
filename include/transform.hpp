@@ -1,10 +1,9 @@
 #ifndef TRANSFORM_HPP
 #define TRANSFORM_HPP
-#include "glm/vec3.hpp"
 #include "glm/mat4x4.hpp"
+#include "glm/vec3.hpp"
 
-class Transform
-{
+class Transform {
 public:
     glm::vec3 position;
     glm::vec3 rotation;
