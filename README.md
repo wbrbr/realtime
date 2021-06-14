@@ -20,3 +20,5 @@ Written in C++ using OpenGL.
 - Anti-aliasing with temporal supersampling (TAA)
 
 ![No AA / TAA comparison](https://i.imgur.com/HFz8loe.png)
+
+- Shadow mapping with PCF

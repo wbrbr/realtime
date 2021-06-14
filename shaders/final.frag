@@ -28,8 +28,9 @@ uniform mat4 lightSpaceMatrix;
 uniform float ambientIntensity;
 uniform float shadowBias;
 
-const float WIDTH = 800.0;
-const float HEIGHT = 450.0;
+uniform bool use_pcf;
+uniform uint frame_num;
+uniform float pcf_radius;
 
 const float PI = 3.14159265359;
 
@@ -91,15 +92,75 @@ vec3 shade(vec3 N, vec3 V, vec3 L, vec3 albedo, float roughness, float metallic)
     return (kD*albedo / PI + specular) * NdotL;
 }
 
+// halton sequence in [0,1]^2
+const vec2 halton[8] = vec2[](
+    vec2(1. / 2., 1. / 3.),
+    vec2(1. / 4., 2. / 3.),
+    vec2(3. / 4., 1. / 9.),
+    vec2(1. / 8., 4. / 9.),
+    vec2(5. / 8., 7. / 9.),
+    vec2(3. / 8., 2. / 9.),
+    vec2(7. / 8., 5. / 9.),
+    vec2(1. / 16., 8. / 9.)
+);
+
+const vec2 sampling_pattern[4] = vec2[](
+    vec2(-1,-1),
+    vec2(-1,1),
+    vec2(1,-1),
+    vec2(1,1)
+);
+
+uvec3 pcg3d(uvec3 v)
+{
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y*v.z; v.y += v.z*v.x; v.z += v.x*v.y;
+    v = v ^ (v >> 16u);
+    v.x += v.y*v.z; v.y += v.z*v.x; v.z += v.x*v.y;
+    return v;
+}
+
 float shadow(vec3 position)
 {
     vec4 lightSpacePos = lightSpaceMatrix * vec4(position, 1.);
     vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
     projCoords = projCoords * .5 + .5;
     float depth = projCoords.z;
-    float closestDepth = texture(depthtex, projCoords.xy).r;
 
-    return depth <= closestDepth + shadowBias ? 1.0 : 0.0;
+    float shadowFactor = 0.0;
+
+    if (use_pcf) {
+
+        uvec3 px_coord = uvec3(uvec2(gl_FragCoord.xy), frame_num);
+
+        uvec3 rnd = pcg3d(px_coord);
+
+        float x_flip = rnd.x % 2u == 0u ? 1 : -1;
+        float y_flip = rnd.y % 2u == 0u ? 1 : -1;
+
+        for (int i = 0; i < 8; i++)
+        {
+            vec2 px_offset = 2 * (halton[i] - 0.5);
+            px_offset *= pcf_radius;
+            px_offset.x *= x_flip;
+            px_offset.y *= y_flip;
+
+            vec2 uv = projCoords.xy + px_offset / 2048; // TODO: take shadow map resolution as uniform
+            float closestDepth = texture(depthtex, uv).r;
+            if (depth <= closestDepth + shadowBias) {
+                shadowFactor += 1.0;
+            }
+        }
+
+        shadowFactor /= 8.0;
+    } else {
+        float closestDepth = texture(depthtex, projCoords.xy).r;
+        if (depth <= closestDepth + shadowBias) {
+            shadowFactor = 1;
+        }
+    }
+
+    return shadowFactor;
 }
 
 void main()

@@ -297,6 +297,10 @@ ShadingPass::ShadingPass(unsigned int width, unsigned int height)
 
     ambient_intensity = 1.f;
     shadow_bias = 1e-8;
+    use_pcf = true;
+    pcf_radius = 3;
+
+    frame_num = 0;
 }
 
 void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, Cubemap* cubemap, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance)
@@ -340,6 +344,9 @@ void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 li
     glUniformMatrix4fv(shading_program.getLoc("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightMatrix));
     glUniform1f(shading_program.getLoc("ambientIntensity"), ambient_intensity);
     glUniform1f(shading_program.getLoc("shadowBias"), shadow_bias);
+    glUniform1f(shading_program.getLoc("use_pcf"), use_pcf);
+    glUniform1ui(shading_program.getLoc("frame_num"), frame_num);
+    glUniform1f(shading_program.getLoc("pcf_radius"), pcf_radius);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, albedo_tex);
@@ -359,6 +366,8 @@ void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 li
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    frame_num++;
 }
 
 void ShadingPass::drawUI()
@@ -366,6 +375,8 @@ void ShadingPass::drawUI()
     if (ImGui::CollapsingHeader("Shading")) {
         ImGui::DragFloat("Ambient intensity", &ambient_intensity, 0.01f, 0.f, 2.f);
         ImGui::DragFloat("Shadow bias", &shadow_bias, 1.f, 0.f, 0.1f, "%.6f", 10.f);
+        ImGui::Checkbox("Enable PCF", &use_pcf);
+        ImGui::DragFloat("PCF radius", &pcf_radius, 1, 0, 16);
     }
 }
 

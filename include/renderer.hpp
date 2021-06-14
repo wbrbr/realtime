@@ -75,6 +75,10 @@ private:
 
     float ambient_intensity;
     float shadow_bias;
+
+    bool use_pcf;
+    unsigned int frame_num;
+    float pcf_radius;
 };
 
 class TAAPass {
