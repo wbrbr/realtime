@@ -120,7 +120,9 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
     , taa_pass(width, height)
     , draw_program("shaders/final.vert", "shaders/draw.frag")
     , draw_depth_program("shaders/final.vert", "shaders/depthdraw.frag")
+    , equirectangular_to_cubemap_program("shaders/equirectangular_to_cubemap.comp.glsl")
     , skybox(nullptr)
+    , output(512, 512)
     , irradiance("res/newport/irr_posy.hdr", "res/newport/irr_negy.hdr", "res/newport/irr_negx.hdr", "res/newport/irr_posx.hdr", "res/newport/irr_negz.hdr", "res/newport/irr_posz.hdr")
     , loader(&loader)
     , can_screenshot(true)
@@ -318,7 +320,9 @@ void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 li
         glBindVertexArray(cube_vao);
         glUseProgram(skybox_program.id());
         glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix()))));
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap->id());
+        glUniform1i(skybox_program.getLoc("skybox"), 0);
         glDrawArrays(GL_TRIANGLES, 0, 36);
     }
 
@@ -454,7 +458,8 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     }
 
     // === SHADING PASS ===
-    shading_pass.execute(camera, lightDir, lightMatrix, skybox, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
+    //shading_pass.execute(camera, lightDir, lightMatrix, skybox, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
+    shading_pass.execute(camera, lightDir, lightMatrix, &output, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
 
     if (taa_pass.enabled) {
         // === TAA PASS ===
@@ -607,4 +612,20 @@ void TAAPass::drawUI()
 void Renderer::setSkybox(Cubemap* skybox)
 {
     this->skybox = skybox;
+}
+
+void Renderer::setSkyboxFromEquirectangular(const ImageTexture &texture, unsigned int width, unsigned int height)
+{
+    if (width % 8 != 0 || height % 8 != 0) {
+        std::cerr << "Skybox width/height must be a multiple of 8" << std::endl;
+        exit(1);
+    }
+    glUseProgram(equirectangular_to_cubemap_program.id());
+    glBindImageTexture(0, output.id(), 0, false, 0, GL_WRITE_ONLY, GL_RGBA16F);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture.id());
+    glUniform1i(equirectangular_to_cubemap_program.getLoc("envmap"), 0);
+    glUniform1i(equirectangular_to_cubemap_program.getLoc("cubeface"), 0);
+    glDispatchCompute(width/8, height/8, 1);
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }

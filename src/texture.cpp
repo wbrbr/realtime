@@ -118,27 +118,27 @@ Cubemap::Cubemap(std::string up, std::string down, std::string left, std::string
     glBindTexture(GL_TEXTURE_CUBE_MAP, m_id);
 
     float* data = load_hdr(up, &width, &height);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_RGBA16F, width, height, 0, GL_RGB, GL_FLOAT, data);
     stbi_image_free(data);
 
     data = load_hdr(down, &width, &height);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_RGBA16F, width, height, 0, GL_RGB, GL_FLOAT, data);
     stbi_image_free(data);
 
     data = load_hdr(left, &width, &height);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, GL_RGBA16F, width, height, 0, GL_RGB, GL_FLOAT, data);
     stbi_image_free(data);
 
     data = load_hdr(right, &width, &height);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_RGBA16F, width, height, 0, GL_RGB, GL_FLOAT, data);
     stbi_image_free(data);
 
     data = load_hdr(front, &width, &height);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGBA16F, width, height, 0, GL_RGB, GL_FLOAT, data);
     stbi_image_free(data);
 
     data = load_hdr(back, &width, &height);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_RGBA16F, width, height, 0, GL_RGB, GL_FLOAT, data);
     stbi_image_free(data);
 
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -146,6 +146,25 @@ Cubemap::Cubemap(std::string up, std::string down, std::string left, std::string
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+}
+
+Cubemap::Cubemap(unsigned int face_width, unsigned int face_height)
+{
+    glGenTextures(1, &m_id);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, m_id);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_RGBA16F, (int)face_width, (int)face_height, 0, GL_RGB, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, GL_RGBA16F, (int)face_width, (int)face_height, 0, GL_RGB, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_RGBA16F, (int)face_width, (int)face_height, 0, GL_RGB, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_RGBA16F, (int)face_width, (int)face_height, 0, GL_RGB, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_RGBA16F, (int)face_width, (int)face_height, 0, GL_RGB, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGBA16F, (int)face_width, (int)face_height, 0, GL_RGB, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 }
 
 Cubemap::~Cubemap()

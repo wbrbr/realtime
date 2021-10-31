@@ -290,8 +290,10 @@ int main(int argc, char** argv)
     TextureLoader loader;
     Renderer renderer(WIDTH, HEIGHT, loader);
     Cubemap skybox("res/newport/_posy.hdr", "res/newport/_negy.hdr", "res/newport/_negx.hdr", "res/newport/_posx.hdr", "res/newport/_negz.hdr", "res/newport/_posz.hdr");
+    ImageTexture envmap("res/photo_studio_loft_hall_4k.hdr");
 
     renderer.setSkybox(&skybox);
+    renderer.setSkyboxFromEquirectangular(envmap, 512, 512);
     std::vector<Object> objects = loadFile(argv[1], loader);
     loader.load();
 

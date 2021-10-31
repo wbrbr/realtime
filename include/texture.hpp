@@ -21,6 +21,7 @@ private:
 class Cubemap {
 public:
     Cubemap(std::string up, std::string down, std::string left, std::string right, std::string front, std::string back);
+    Cubemap(unsigned int face_width, unsigned int face_height);
     ~Cubemap();
     unsigned int id() const;
 

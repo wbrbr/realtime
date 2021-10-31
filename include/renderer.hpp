@@ -106,6 +106,7 @@ public:
     Renderer(unsigned int width, unsigned int height, TextureLoader& loader);
     void render(std::vector<Object> objects, Camera cam);
     void setSkybox(Cubemap* skybox);
+    void setSkyboxFromEquirectangular(const ImageTexture& texture, unsigned int width, unsigned int height);
 
 private:
     unsigned int width, height;
@@ -116,9 +117,11 @@ private:
     TAAPass taa_pass;
     Shader draw_program;
     Shader draw_depth_program;
+    Shader equirectangular_to_cubemap_program;
 
     Cubemap* skybox;
     Cubemap irradiance;
+    Cubemap output;
 
     TextureLoader* loader;
 
