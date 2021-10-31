@@ -6,8 +6,19 @@
 #include <stdio.h>
 #include <string>
 
-unsigned int loadShaderFromSource(unsigned int type, const char* source)
+unsigned int loadShaderFromFile(unsigned int type, std::string path)
 {
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        std::cerr << "Error opening vertex shader: " << path << std::endl;
+        exit(1);
+    }
+    std::stringstream buf;
+    buf << file.rdbuf();
+    std::string source_str = buf.str();
+
+    const char* source = source_str.c_str();
+
     unsigned int shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, NULL);
     glCompileShader(shader);
@@ -31,15 +42,13 @@ unsigned int loadShaderFromSource(unsigned int type, const char* source)
     return shader;
 }
 
-unsigned int loadShaderProgramFromSource(const char* vSource, const char* fSource)
+unsigned int createProgram(unsigned int* shaders, unsigned int num_shaders)
 {
     unsigned int program = glCreateProgram();
-    GLuint vertex, fragment;
-    vertex = loadShaderFromSource(GL_VERTEX_SHADER, vSource);
-    fragment = loadShaderFromSource(GL_FRAGMENT_SHADER, fSource);
+    for (unsigned int i = 0; i < num_shaders; i++) {
+        glAttachShader(program, shaders[i]);
+    }
 
-    glAttachShader(program, vertex);
-    glAttachShader(program, fragment);
     glLinkProgram(program);
     GLint success;
     glGetProgramiv(program, GL_LINK_STATUS, &success);
@@ -52,40 +61,27 @@ unsigned int loadShaderProgramFromSource(const char* vSource, const char* fSourc
         free(program_log);
     }
 
-    glDeleteShader(vertex);
-    glDeleteShader(fragment);
     return program;
 }
 
-unsigned int loadShaderProgram(std::string vPath, std::string fPath)
-{
-    std::ifstream vertex_file(vPath);
-    if (!vertex_file.is_open()) {
-        std::cerr << "Error opening vertex shader: " << vPath << std::endl;
-        exit(1);
-    }
-    std::stringstream buf;
-    buf << vertex_file.rdbuf();
-    std::string vertex_source = buf.str();
-
-    buf.str("");
-
-    std::ifstream fragment_file(fPath);
-    if (!fragment_file.is_open()) {
-        std::cerr << "Error opening fragment shader: " << fPath << std::endl;
-        exit(1);
-    }
-    buf << fragment_file.rdbuf();
-    std::string fragment_source = buf.str();
-
-    unsigned int program = loadShaderProgramFromSource(vertex_source.c_str(), fragment_source.c_str());
-    return program;
-}
 
 Shader::Shader(std::string vPath, std::string fPath)
 {
-    m_id = loadShaderProgram(vPath, fPath);
+    unsigned int vertex_shader = loadShaderFromFile(GL_VERTEX_SHADER, vPath);
+    unsigned int fragment_shader = loadShaderFromFile(GL_FRAGMENT_SHADER, fPath);
+    unsigned int shaders[2] = { vertex_shader, fragment_shader };
+    m_id = createProgram(shaders, 2);
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
     m_name = vPath + "|" + fPath;
+}
+
+Shader::Shader(std::string cPath)
+{
+    unsigned int shader = loadShaderFromFile(GL_COMPUTE_SHADER, cPath);
+    m_id = createProgram(&shader, 1);
+    glDeleteShader(shader);
+    m_name = cPath;
 }
 
 Shader::~Shader()

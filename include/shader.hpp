@@ -9,6 +9,7 @@ unsigned int loadShaderProgram(std::string vPath, std::string fPath);
 class Shader {
 public:
     Shader(std::string vPath, std::string fPath);
+    Shader(std::string cPath);
     ~Shader();
     int getLoc(std::string name);
     unsigned int id();
