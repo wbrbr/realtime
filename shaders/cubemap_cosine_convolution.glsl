@@ -1,10 +1,11 @@
 #version 430 core
-#define NUM_SAMPLES 16
+#define NUM_SAMPLES 128
+#define M_PI 3.1415
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 uniform samplerCube cubemap;
+uniform sampler3D noise_tex;
 writeonly uniform imageCube irradiance_map;
-uniform vec3 vectors_with_cos_distribution[NUM_SAMPLES];
 
 vec3 cubemap_uv_to_direction(vec2 uv, uint layer)
 {
@@ -49,12 +50,16 @@ void main() {
     b1 = normalize(b1);
     vec3 b2 = cross(n, b1);
 
-    //imageStore(irradiance_map, ivec3(gl_GlobalInvocationID), texture(cubemap, n));
-
     for (int i = 0; i < NUM_SAMPLES; i++)
     {
-        vec3 v = vectors_with_cos_distribution[i];
-        vec3 w_i = v.x * b1 + v.y * b2 + v.z * n;
+        vec2 rnd = texelFetch(noise_tex, ivec3(gl_GlobalInvocationID.xy, i), 0).xy;
+        float r = sqrt(rnd.x);
+        float theta = 2.0 * M_PI * rnd.y;
+        float x = r * cos(theta);
+        float y = r * sin(theta);
+        float z = sqrt(max(0, 1 - x*x - y*y));
+
+        vec3 w_i = x * b1 + y * b2 + z * n;
         irradiance += texture(cubemap, w_i).rgb;
     }
     irradiance /= NUM_SAMPLES;

@@ -620,7 +620,7 @@ void Renderer::setSkyboxFromEquirectangular(const ImageTexture &texture, unsigne
         std::cerr << "Skybox width/height must be a multiple of 8" << std::endl;
         exit(1);
     }
-    skybox = new Cubemap{512, 512};
+    skybox = new Cubemap{width, height};
     glUseProgram(equirectangular_to_cubemap_program.id());
     glBindImageTexture(0, skybox->id(), 0, true, 0, GL_WRITE_ONLY, GL_RGBA16F);
     glActiveTexture(GL_TEXTURE0);
@@ -633,11 +633,29 @@ void Renderer::setSkyboxFromEquirectangular(const ImageTexture &texture, unsigne
     glBindImageTexture(0, irradiance.id(), 0, true, 0, GL_WRITE_ONLY, GL_RGBA16F);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, skybox->id());
+    glGenerateTextureMipmap(skybox->id());
     glUniform1i(cubemap_cosine_convolution_program.getLoc("cubemap"), 0);
     glUniform1i(cubemap_cosine_convolution_program.getLoc("irradiance_map"), 0);
-    for (int i = 0; i < 16; i++) {
-        glUniform3f(cubemap_cosine_convolution_program.getLoc("vectors_with_cos_distribution[" + std::to_string(i) + "]"), 0, 0, 1);
+
+    unsigned int noise_tex;
+    glActiveTexture(GL_TEXTURE1);
+    glGenTextures(1, &noise_tex);
+    glBindTexture(GL_TEXTURE_3D, noise_tex);
+    unsigned int num_samples = 128;
+    std::vector<float> noise_vec;
+    noise_vec.resize(2*num_samples*width*height);
+    for (unsigned int i = 0; i < noise_vec.size(); i++) {
+        noise_vec[i] = (float)drand48();
     }
-    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_RG16F, (int)width, (int)height, num_samples, 0, GL_RG, GL_FLOAT, noise_vec.data());
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glUniform1i(cubemap_cosine_convolution_program.getLoc("noise_tex"), 1);
+
+    /* for (int i = 0; i < 16; i++) {
+        glUniform3f(cubemap_cosine_convolution_program.getLoc("vectors_with_cos_distribution[" + std::to_string(i) + "]"), (float)0, (float)0, (float)1);
+    } */
+    //glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    glMemoryBarrier(GL_ALL_BARRIER_BITS);
     glDispatchCompute(width/8, height/8, 6);
 }
