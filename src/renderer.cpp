@@ -642,16 +642,16 @@ void Renderer::setSkyboxFromEquirectangular(const ImageTexture &texture, unsigne
     glDispatchCompute(width/8, height/8, 1);
 
     // +Y
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("face_center"), 0, 1, 0);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("right"), 0, 0, 1);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("up"), 1, 0, 0);
+    glUniform3f(equirectangular_to_cubemap_program.getLoc("face_center"), 0, -1, 0);
+    glUniform3f(equirectangular_to_cubemap_program.getLoc("right"), 1, 0, 0);
+    glUniform3f(equirectangular_to_cubemap_program.getLoc("up"), 0, 0, 1);
     glUniform1i(equirectangular_to_cubemap_program.getLoc("layer"), 2);
     glDispatchCompute(width/8, height/8, 1);
 
     // -Y
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("face_center"), 0, -1, 0);
+    glUniform3f(equirectangular_to_cubemap_program.getLoc("face_center"), 0, 1, 0);
     glUniform3f(equirectangular_to_cubemap_program.getLoc("right"), 1, 0, 0);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("up"), 0, 0, 1);
+    glUniform3f(equirectangular_to_cubemap_program.getLoc("up"), 0, 0, -1);
     glUniform1i(equirectangular_to_cubemap_program.getLoc("layer"), 3);
     glDispatchCompute(width/8, height/8, 1);
 
