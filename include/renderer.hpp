@@ -118,10 +118,10 @@ private:
     Shader draw_program;
     Shader draw_depth_program;
     Shader equirectangular_to_cubemap_program;
+    Shader cubemap_cosine_convolution_program;
 
     Cubemap* skybox;
     Cubemap irradiance;
-    Cubemap output;
 
     TextureLoader* loader;
 

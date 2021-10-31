@@ -121,9 +121,9 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
     , draw_program("shaders/final.vert", "shaders/draw.frag")
     , draw_depth_program("shaders/final.vert", "shaders/depthdraw.frag")
     , equirectangular_to_cubemap_program("shaders/equirectangular_to_cubemap.comp.glsl")
+    , cubemap_cosine_convolution_program("shaders/cubemap_cosine_convolution.glsl")
     , skybox(nullptr)
-    , output(512, 512)
-    , irradiance("res/newport/irr_posy.hdr", "res/newport/irr_negy.hdr", "res/newport/irr_negx.hdr", "res/newport/irr_posx.hdr", "res/newport/irr_negz.hdr", "res/newport/irr_posz.hdr")
+    , irradiance{512, 512}
     , loader(&loader)
     , can_screenshot(true)
 {
@@ -459,7 +459,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
 
     // === SHADING PASS ===
     //shading_pass.execute(camera, lightDir, lightMatrix, skybox, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
-    shading_pass.execute(camera, lightDir, lightMatrix, &output, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
+    shading_pass.execute(camera, lightDir, lightMatrix, &irradiance, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
 
     if (taa_pass.enabled) {
         // === TAA PASS ===
@@ -620,13 +620,24 @@ void Renderer::setSkyboxFromEquirectangular(const ImageTexture &texture, unsigne
         std::cerr << "Skybox width/height must be a multiple of 8" << std::endl;
         exit(1);
     }
+    skybox = new Cubemap{512, 512};
     glUseProgram(equirectangular_to_cubemap_program.id());
-    glBindImageTexture(0, output.id(), 0, true, 0, GL_WRITE_ONLY, GL_RGBA16F);
+    glBindImageTexture(0, skybox->id(), 0, true, 0, GL_WRITE_ONLY, GL_RGBA16F);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture.id());
     glUniform1i(equirectangular_to_cubemap_program.getLoc("envmap"), 0);
-    glUniform1i(equirectangular_to_cubemap_program.getLoc("cubeface"), 0);
-
+    glUniform1i(equirectangular_to_cubemap_program.getLoc("cubemap"), 0);
     glDispatchCompute(width/8, height/8, 6);
+
+    glUseProgram(cubemap_cosine_convolution_program.id());
+    glBindImageTexture(0, irradiance.id(), 0, true, 0, GL_WRITE_ONLY, GL_RGBA16F);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox->id());
+    glUniform1i(cubemap_cosine_convolution_program.getLoc("cubemap"), 0);
+    glUniform1i(cubemap_cosine_convolution_program.getLoc("irradiance_map"), 0);
+    for (int i = 0; i < 16; i++) {
+        glUniform3f(cubemap_cosine_convolution_program.getLoc("vectors_with_cos_distribution[" + std::to_string(i) + "]"), 0, 0, 1);
+    }
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    glDispatchCompute(width/8, height/8, 6);
 }
