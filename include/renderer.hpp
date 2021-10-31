@@ -123,5 +123,7 @@ private:
     TextureLoader* loader;
 
     HaltonSequence halton;
+
+    bool can_screenshot;
 };
 #endif

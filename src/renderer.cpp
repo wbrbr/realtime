@@ -8,6 +8,8 @@
 #include "imgui.h"
 #include <iostream>
 #include <random>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 unsigned int createNoiseTexture()
 {
@@ -121,6 +123,7 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
     , skybox(nullptr)
     , irradiance("res/newport/irr_posy.hdr", "res/newport/irr_negy.hdr", "res/newport/irr_negx.hdr", "res/newport/irr_posx.hdr", "res/newport/irr_negz.hdr", "res/newport/irr_posz.hdr")
     , loader(&loader)
+    , can_screenshot(true)
 {
 }
 
@@ -504,6 +507,27 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
         glUniform2f(draw_program.getLoc("jitter"), jitter_ndc.x, jitter_ndc.y);
     }
     glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    if (ImGui::Button("Screenshot") && can_screenshot) {
+        can_screenshot = false;
+        unsigned char* pixels = new unsigned char[width*height*3];
+        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+        unsigned char* pixels_flipped = new unsigned char[width*height*3];
+        for (unsigned int j = 0; j < height; j++) {
+            for (unsigned int i = 0; i < width; i++) {
+                unsigned int dst_index = 3*(j*width+i);
+                unsigned int src_index = 3*((height-1-j)*(width)+i);
+                pixels_flipped[dst_index] = pixels[src_index];
+                pixels_flipped[dst_index+1] = pixels[src_index+1];
+                pixels_flipped[dst_index+2] = pixels[src_index+2];
+            }
+        }
+        stbi_write_png("screenshot.png", (int)width, (int)height, 3, pixels_flipped, (int)width*3);
+        delete[] pixels;
+        delete[] pixels_flipped;
+    } else {
+        can_screenshot = true;
+    }
 }
 
 TAAPass::TAAPass(unsigned int width, unsigned int height)
