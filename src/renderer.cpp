@@ -627,47 +627,6 @@ void Renderer::setSkyboxFromEquirectangular(const ImageTexture &texture, unsigne
     glUniform1i(equirectangular_to_cubemap_program.getLoc("envmap"), 0);
     glUniform1i(equirectangular_to_cubemap_program.getLoc("cubeface"), 0);
 
-    // +X
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("face_center"), 1, 0, 0);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("right"), 0, 0, -1);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("up"), 0, 1, 0);
-    glUniform1i(equirectangular_to_cubemap_program.getLoc("layer"), 0);
-    glDispatchCompute(width/8, height/8, 1);
-
-    // -X
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("face_center"), -1, 0, 0);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("right"), 0, 0, 1);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("up"), 0, 1, 0);
-    glUniform1i(equirectangular_to_cubemap_program.getLoc("layer"), 1);
-    glDispatchCompute(width/8, height/8, 1);
-
-    // +Y
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("face_center"), 0, -1, 0);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("right"), 1, 0, 0);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("up"), 0, 0, 1);
-    glUniform1i(equirectangular_to_cubemap_program.getLoc("layer"), 2);
-    glDispatchCompute(width/8, height/8, 1);
-
-    // -Y
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("face_center"), 0, 1, 0);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("right"), 1, 0, 0);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("up"), 0, 0, -1);
-    glUniform1i(equirectangular_to_cubemap_program.getLoc("layer"), 3);
-    glDispatchCompute(width/8, height/8, 1);
-
-    // +Z
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("face_center"), 0, 0, 1);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("right"), 1, 0, 0);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("up"), 0, 1, 0);
-    glUniform1i(equirectangular_to_cubemap_program.getLoc("layer"), 4);
-    glDispatchCompute(width/8, height/8, 1);
-
-    // -Z
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("face_center"), 0, 0, -1);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("right"), -1, 0, 0);
-    glUniform3f(equirectangular_to_cubemap_program.getLoc("up"), 0, 1, 0);
-    glUniform1i(equirectangular_to_cubemap_program.getLoc("layer"), 5);
-    glDispatchCompute(width/8, height/8, 1);
-
+    glDispatchCompute(width/8, height/8, 6);
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
