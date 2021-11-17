@@ -41,7 +41,7 @@ private:
 class SSAOPass {
 public:
     SSAOPass(unsigned int width, unsigned int height);
-    void execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex);
+    void execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex, unsigned int vao);
     void drawUI();
 
     unsigned int ssao_tex;
@@ -60,7 +60,7 @@ private:
 class ShadingPass {
 public:
     ShadingPass(unsigned int width, unsigned int height);
-    void execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, Cubemap* cubemap, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance);
+    void execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, Cubemap* cubemap, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance, unsigned int vao);
     void drawUI();
 
     unsigned int shading_tex;
@@ -86,7 +86,7 @@ private:
 class TAAPass {
 public:
     TAAPass(unsigned int width, unsigned int height);
-    void execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex, glm::vec2 jitter);
+    void execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex, glm::vec2 jitter, unsigned int vao);
     void drawUI();
 
     bool enabled;
@@ -128,6 +128,8 @@ private:
     TextureLoader* loader;
 
     HaltonSequence halton;
+
+    unsigned int dummy_vao;
 
     bool can_screenshot;
 };

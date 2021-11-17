@@ -1,7 +1,7 @@
 #include "halton.hpp"
 #include <iostream>
 
-constexpr glm::vec2 sequence[] = {
+const glm::vec2 sequence[] = {
     glm::vec2(1. / 2., 1. / 3.),
     glm::vec2(1. / 4., 2. / 3.),
     glm::vec2(3. / 4., 1. / 9.),

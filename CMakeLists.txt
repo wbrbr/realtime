@@ -49,6 +49,7 @@ target_link_libraries(realtime OpenGL::GL)
 
 add_compile_definitions(TRACY_ENABLE)
 add_compile_definitions(NOMINMAX)
+add_compile_definitions(BASE_DIR="${CMAKE_SOURCE_DIR}")
 
 # if (CMAKE_COMPILER_IS_GNUCC)
 #     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -DTRACY_ENABLE")

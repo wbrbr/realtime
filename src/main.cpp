@@ -49,6 +49,40 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
 }
 
+bool endsWith(const char* str, const char* substr)
+{
+    size_t str_len = strlen(str);
+    size_t substr_len = strlen(substr);
+
+    if (substr_len > str_len) {
+        return false;
+    }
+
+    for (size_t i = 0; i < substr_len; i++) {
+        size_t str_idx = str_len - 1 - i;
+        size_t substr_idx = substr_len - 1 - i;
+
+        if (str[str_idx] != substr[substr_idx]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void drop_callback(GLFWwindow* window, int count, const char** paths)
+{
+    for (int i = 0; i < count; i++)
+    {
+        const char* path = paths[i];
+        if (endsWith(path, ".gltf")) {
+            std::cout << "GLTF";
+        } else if (endsWith(path, ".hdr")) {
+            std::cout << "HDR";
+        }
+    }
+}
+
 GLFWwindow* initWindow()
 {
     if (!glfwInit()) {
@@ -67,6 +101,7 @@ GLFWwindow* initWindow()
     }
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetKeyCallback(window, key_callback);
+    glfwSetDropCallback(window, drop_callback);
     glfwMakeContextCurrent(window);
 
     if (gl3wInit()) {
@@ -258,10 +293,6 @@ std::vector<Object> loadFile(std::string path, TextureLoader& loader)
 
 int main(int argc, char** argv)
 {
-    if (argc < 2) {
-        printf("Usage: %s <glTF file>\n", argv[0]);
-        return 1;
-    }
     GLFWwindow* window = initWindow();
     if (!window) {
         return 1;
@@ -283,19 +314,20 @@ int main(int argc, char** argv)
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
+    std::filesystem::current_path(BASE_DIR);
+
     Camera camera;
     camera.setPosition(glm::vec3(0.f, 0.f, 3.f));
     glfwSetWindowUserPointer(window, &camera);
 
     TextureLoader loader;
     Renderer renderer(WIDTH, HEIGHT, loader);
-    Cubemap skybox("res/newport/_posy.hdr", "res/newport/_negy.hdr", "res/newport/_negx.hdr", "res/newport/_posx.hdr", "res/newport/_negz.hdr", "res/newport/_posz.hdr");
-    ImageTexture envmap("res/photo_studio_loft_hall_4k.hdr");
+    //ImageTexture envmap("res/photo_studio_loft_hall_4k.hdr");
 
-    renderer.setSkybox(&skybox);
-    renderer.setSkyboxFromEquirectangular(envmap, 512, 512);
-    std::vector<Object> objects = loadFile(argv[1], loader);
-    loader.load();
+    //renderer.setSkyboxFromEquirectangular(envmap, 512, 512);
+    //std::vector<Object> objects = loadFile(argv[1], loader);
+    std::vector<Object> objects;
+    //loader.load();
 
     double lastCursorX, lastCursorY;
     float polar = 0.f; // [-pi/2, pi/2]

@@ -127,6 +127,7 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
     , loader(&loader)
     , can_screenshot(true)
 {
+    glGenVertexArrays(1, &dummy_vao);
 }
 
 GeometryPass::GeometryPass(unsigned int width, unsigned int height)
@@ -246,7 +247,7 @@ SSAOPass::SSAOPass(unsigned int width, unsigned int height)
     bias = 0;
 }
 
-void SSAOPass::execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex)
+void SSAOPass::execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex, unsigned int vao)
 {
     ZoneScopedN("SSAO");
     TracyGpuZone("SSAO");
@@ -273,6 +274,7 @@ void SSAOPass::execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int posi
     glBindTexture(GL_TEXTURE_2D, noise_tex);
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, rough_met_tex);
+    glBindVertexArray(vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
@@ -310,7 +312,7 @@ ShadingPass::ShadingPass(unsigned int width, unsigned int height)
     skybox_choice = 0;
 }
 
-void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, Cubemap* cubemap, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance)
+void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, Cubemap* cubemap, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance, unsigned int vao)
 {
     ZoneScopedN("Shading pass");
     TracyGpuZone("Shading pass");
@@ -383,7 +385,8 @@ void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 li
     glBindTexture(GL_TEXTURE_2D, ssao_tex);
     glActiveTexture(GL_TEXTURE6);
     glBindTexture(GL_TEXTURE_CUBE_MAP, irradiance.id());
-
+    
+    glBindVertexArray(vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -467,7 +470,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     glDisable(GL_DEPTH_TEST);
 
     if (ssao_pass.enabled) {
-        ssao_pass.execute(camera.getViewMatrix(), jitter_mat * proj_mat, geometry_pass.position_tex, geometry_pass.normal_tex, geometry_pass.rough_met_tex);
+        ssao_pass.execute(camera.getViewMatrix(), jitter_mat * proj_mat, geometry_pass.position_tex, geometry_pass.normal_tex, geometry_pass.rough_met_tex, dummy_vao);
     } else {
         float white[] = { 1.f, 1.f, 1.f, 1.f };
         glBindFramebuffer(GL_FRAMEBUFFER, ssao_pass.fbo);
@@ -476,12 +479,12 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     }
 
     // === SHADING PASS ===
-    shading_pass.execute(camera, lightDir, lightMatrix, skybox, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
+    shading_pass.execute(camera, lightDir, lightMatrix, skybox, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance, dummy_vao);
     //shading_pass.execute(camera, lightDir, lightMatrix, &irradiance, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
 
     if (taa_pass.enabled) {
         // === TAA PASS ===
-        taa_pass.execute(camera, geometry_pass.position_tex, shading_pass.shading_tex, jitter_ndc);
+        taa_pass.execute(camera, geometry_pass.position_tex, shading_pass.shading_tex, jitter_ndc, dummy_vao);
     }
 
     unsigned int final_tex = taa_pass.enabled ? taa_pass.taa_tex : shading_pass.shading_tex;
@@ -529,6 +532,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
         glUseProgram(draw_program.id());
         glUniform2f(draw_program.getLoc("jitter"), jitter_ndc.x, jitter_ndc.y);
     }
+    glBindVertexArray(dummy_vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     if (ImGui::Button("Screenshot") && can_screenshot) {
@@ -578,7 +582,7 @@ TAAPass::TAAPass(unsigned int width, unsigned int height)
     enabled = true;
 }
 
-void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex, glm::vec2 jitter)
+void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex, glm::vec2 jitter, unsigned int vao)
 {
     ZoneScopedN("TAA pass");
     TracyGpuZone("TAA pass");
@@ -607,6 +611,7 @@ void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned 
 
     glUniform1i(program.getLoc("neighborhood_clamping"), neighborhood_clamping);
 
+    glBindVertexArray(vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
