@@ -4,7 +4,7 @@
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 uniform samplerCube cubemap;
-uniform sampler3D noise_tex;
+//uniform sampler3D noise_tex;
 writeonly uniform imageCube irradiance_map;
 
 vec3 cubemap_uv_to_direction(vec2 uv, uint layer)
@@ -52,6 +52,21 @@ void main() {
 
     for (int i = 0; i < NUM_SAMPLES; i++)
     {
+        for (int j = 0; j < NUM_SAMPLES; j++)
+        {
+            float phi = 2.0 * M_PI * float(i) / float(NUM_SAMPLES);
+            float theta = 0.5 * M_PI * float(j) / float(NUM_SAMPLES);
+
+            float x = cos(phi) * sin(theta);
+            float y = sin(phi) * sin(theta);
+            float z = cos(theta);
+
+            vec3 w_i = x * b1 + y * b2 + z * n;
+            irradiance += texture(cubemap, w_i).rgb * cos(theta) * sin(theta);
+        }
+    }
+    /* for (int i = 0; i < NUM_SAMPLES; i++)
+    {
         vec2 rnd = texelFetch(noise_tex, ivec3(gl_GlobalInvocationID.xy, i), 0).xy;
         float r = sqrt(rnd.x);
         float theta = 2.0 * M_PI * rnd.y;
@@ -61,8 +76,8 @@ void main() {
 
         vec3 w_i = x * b1 + y * b2 + z * n;
         irradiance += texture(cubemap, w_i).rgb;
-    }
-    irradiance /= NUM_SAMPLES;
+    } */
+    irradiance *= M_PI / (NUM_SAMPLES * NUM_SAMPLES);
 
     imageStore(irradiance_map, ivec3(gl_GlobalInvocationID), vec4(irradiance, 1));
 }

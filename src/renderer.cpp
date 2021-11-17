@@ -637,7 +637,7 @@ void Renderer::setSkyboxFromEquirectangular(const ImageTexture &texture, unsigne
     glUniform1i(cubemap_cosine_convolution_program.getLoc("cubemap"), 0);
     glUniform1i(cubemap_cosine_convolution_program.getLoc("irradiance_map"), 0);
 
-    unsigned int noise_tex;
+    /* unsigned int noise_tex;
     glActiveTexture(GL_TEXTURE1);
     glGenTextures(1, &noise_tex);
     glBindTexture(GL_TEXTURE_3D, noise_tex);
@@ -650,7 +650,7 @@ void Renderer::setSkyboxFromEquirectangular(const ImageTexture &texture, unsigne
     glTexImage3D(GL_TEXTURE_3D, 0, GL_RG16F, (int)width, (int)height, num_samples, 0, GL_RG, GL_FLOAT, noise_vec.data());
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glUniform1i(cubemap_cosine_convolution_program.getLoc("noise_tex"), 1);
+    glUniform1i(cubemap_cosine_convolution_program.getLoc("noise_tex"), 1); */
 
     /* for (int i = 0; i < 16; i++) {
         glUniform3f(cubemap_cosine_convolution_program.getLoc("vectors_with_cos_distribution[" + std::to_string(i) + "]"), (float)0, (float)0, (float)1);
