@@ -79,6 +79,8 @@ private:
     bool use_pcf;
     unsigned int frame_num;
     float pcf_radius;
+
+    int skybox_choice;
 };
 
 class TAAPass {

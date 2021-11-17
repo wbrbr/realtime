@@ -306,6 +306,8 @@ ShadingPass::ShadingPass(unsigned int width, unsigned int height)
     pcf_radius = 3;
 
     frame_num = 0;
+
+    skybox_choice = 0;
 }
 
 void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, Cubemap* cubemap, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance)
@@ -315,13 +317,25 @@ void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 li
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-    if (cubemap) {
+    const Cubemap* skyboxMap = nullptr;
+    switch(skybox_choice) {
+        case 0:
+            skyboxMap = cubemap;
+            break;
+        case 1:
+            skyboxMap = &irradiance;
+            break;
 
+        default:
+            assert(false);
+    }
+
+    if (skyboxMap) {
         glBindVertexArray(cube_vao);
         glUseProgram(skybox_program.id());
         glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix()))));
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap->id());
+        glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxMap->id());
         glUniform1i(skybox_program.getLoc("skybox"), 0);
         glDrawArrays(GL_TRIANGLES, 0, 36);
     }
@@ -384,6 +398,10 @@ void ShadingPass::drawUI()
         ImGui::DragFloat("Shadow bias", &shadow_bias, 1.f, 0.f, 0.1f, "%.6f", 10.f);
         ImGui::Checkbox("Enable PCF", &use_pcf);
         ImGui::DragFloat("PCF radius", &pcf_radius, 1, 0, 16);
+    }
+    if (ImGui::CollapsingHeader("Skybox")) {
+        const char* items[] = {"skybox", "irradiance"};
+        ImGui::Combo("Skybox Display", &skybox_choice, items, 2);
     }
 }
 
@@ -458,8 +476,8 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     }
 
     // === SHADING PASS ===
-    //shading_pass.execute(camera, lightDir, lightMatrix, skybox, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
-    shading_pass.execute(camera, lightDir, lightMatrix, &irradiance, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
+    shading_pass.execute(camera, lightDir, lightMatrix, skybox, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
+    //shading_pass.execute(camera, lightDir, lightMatrix, &irradiance, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
 
     if (taa_pass.enabled) {
         // === TAA PASS ===
@@ -637,24 +655,6 @@ void Renderer::setSkyboxFromEquirectangular(const ImageTexture &texture, unsigne
     glUniform1i(cubemap_cosine_convolution_program.getLoc("cubemap"), 0);
     glUniform1i(cubemap_cosine_convolution_program.getLoc("irradiance_map"), 0);
 
-    /* unsigned int noise_tex;
-    glActiveTexture(GL_TEXTURE1);
-    glGenTextures(1, &noise_tex);
-    glBindTexture(GL_TEXTURE_3D, noise_tex);
-    unsigned int num_samples = 128;
-    std::vector<float> noise_vec;
-    noise_vec.resize(2*num_samples*width*height);
-    for (unsigned int i = 0; i < noise_vec.size(); i++) {
-        noise_vec[i] = (float)drand48();
-    }
-    glTexImage3D(GL_TEXTURE_3D, 0, GL_RG16F, (int)width, (int)height, num_samples, 0, GL_RG, GL_FLOAT, noise_vec.data());
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glUniform1i(cubemap_cosine_convolution_program.getLoc("noise_tex"), 1); */
-
-    /* for (int i = 0; i < 16; i++) {
-        glUniform3f(cubemap_cosine_convolution_program.getLoc("vectors_with_cos_distribution[" + std::to_string(i) + "]"), (float)0, (float)0, (float)1);
-    } */
     //glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     glMemoryBarrier(GL_ALL_BARRIER_BITS);
     glDispatchCompute(width/8, height/8, 6);
