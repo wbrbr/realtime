@@ -37,94 +37,16 @@ const unsigned int HEIGHT = 900;
 
 bool flyMode = true;
 
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-    if (key == GLFW_KEY_F && action == GLFW_RELEASE) {
-        flyMode = !flyMode;
-        if (flyMode) {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        } else {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        }
-    }
-}
+struct Context {
+    TextureLoader loader;
+    Renderer renderer;
+    std::vector<Object> objects;
 
-bool endsWith(const char* str, const char* substr)
-{
-    size_t str_len = strlen(str);
-    size_t substr_len = strlen(substr);
+    Context()
+        : renderer(WIDTH, HEIGHT, loader)
+    {}
+};
 
-    if (substr_len > str_len) {
-        return false;
-    }
-
-    for (size_t i = 0; i < substr_len; i++) {
-        size_t str_idx = str_len - 1 - i;
-        size_t substr_idx = substr_len - 1 - i;
-
-        if (str[str_idx] != substr[substr_idx]) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-void drop_callback(GLFWwindow* window, int count, const char** paths)
-{
-    for (int i = 0; i < count; i++)
-    {
-        const char* path = paths[i];
-        if (endsWith(path, ".gltf")) {
-            std::cout << "GLTF" << std::endl;
-        } else if (endsWith(path, ".hdr")) {
-            std::cout << "HDR" << std::endl;
-            Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-            ImageTexture tex(path);
-            renderer->setSkyboxFromEquirectangular(tex, 512, 512);
-        }
-    }
-}
-
-GLFWwindow* initWindow()
-{
-    if (!glfwInit()) {
-        return nullptr;
-    }
-    glfwWindowHint(GLFW_RESIZABLE, 0);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
-
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Real-time rendering", NULL, NULL);
-    if (!window) {
-        glfwTerminate();
-        return nullptr;
-    }
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetKeyCallback(window, key_callback);
-    glfwSetDropCallback(window, drop_callback);
-    glfwMakeContextCurrent(window);
-
-    if (gl3wInit()) {
-        glfwTerminate();
-        return nullptr;
-    }
-    if (!gl3wIsSupported(4, 4)) {
-        std::cout << "OpenGL 4.4 not supported" << std::endl;
-        return nullptr;
-    }
-
-    return window;
-}
-
-void dbgcallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* msg, const void* data)
-{
-    if (DBG_MODE && type == GL_DEBUG_TYPE_ERROR) {
-        std::cerr << "debug call: " << msg << std::endl;
-    }
-}
 
 TexID loadTextureFromPath(aiString prefix, aiString fileName, const aiScene* scene, TextureLoader& loader)
 {
@@ -275,6 +197,8 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
     return obj;
 }
 
+
+
 std::vector<Object> loadFile(std::string path, TextureLoader& loader)
 {
     ZoneScoped;
@@ -293,6 +217,96 @@ std::vector<Object> loadFile(std::string path, TextureLoader& loader)
 
     return res;
 }
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_F && action == GLFW_RELEASE) {
+        flyMode = !flyMode;
+        if (flyMode) {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        } else {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+    }
+}
+
+bool endsWith(const char* str, const char* substr)
+{
+    size_t str_len = strlen(str);
+    size_t substr_len = strlen(substr);
+
+    if (substr_len > str_len) {
+        return false;
+    }
+
+    for (size_t i = 0; i < substr_len; i++) {
+        size_t str_idx = str_len - 1 - i;
+        size_t substr_idx = substr_len - 1 - i;
+
+        if (str[str_idx] != substr[substr_idx]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void drop_callback(GLFWwindow* window, int count, const char** paths)
+{
+    Context* ctx = static_cast<Context*>(glfwGetWindowUserPointer(window));
+    for (int i = 0; i < count; i++)
+    {
+        const char* path = paths[i];
+        if (endsWith(path, ".gltf")) {
+            ctx->objects = loadFile(std::string(path), ctx->loader);
+            ctx->loader.load();
+        } else if (endsWith(path, ".hdr")) {
+            ImageTexture tex(path);
+            ctx->renderer.setSkyboxFromEquirectangular(tex, 512, 512);
+        }
+    }
+}
+
+GLFWwindow* initWindow()
+{
+    if (!glfwInit()) {
+        return nullptr;
+    }
+    glfwWindowHint(GLFW_RESIZABLE, 0);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
+
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Real-time rendering", NULL, NULL);
+    if (!window) {
+        glfwTerminate();
+        return nullptr;
+    }
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetKeyCallback(window, key_callback);
+    glfwSetDropCallback(window, drop_callback);
+    glfwMakeContextCurrent(window);
+
+    if (gl3wInit()) {
+        glfwTerminate();
+        return nullptr;
+    }
+    if (!gl3wIsSupported(4, 4)) {
+        std::cout << "OpenGL 4.4 not supported" << std::endl;
+        return nullptr;
+    }
+
+    return window;
+}
+
+void dbgcallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* msg, const void* data)
+{
+    if (DBG_MODE && type == GL_DEBUG_TYPE_ERROR) {
+        std::cerr << "debug call: " << msg << std::endl;
+    }
+}
+
 
 int main(int argc, char** argv)
 {
@@ -322,14 +336,12 @@ int main(int argc, char** argv)
     Camera camera;
     camera.setPosition(glm::vec3(0.f, 0.f, 3.f));
 
-    TextureLoader loader;
-    Renderer renderer(WIDTH, HEIGHT, loader);
-    glfwSetWindowUserPointer(window, &renderer);
+    Context ctx;
+    glfwSetWindowUserPointer(window, &ctx);
     //ImageTexture envmap("res/photo_studio_loft_hall_4k.hdr");
 
     //renderer.setSkyboxFromEquirectangular(envmap, 512, 512);
     //std::vector<Object> objects = loadFile(argv[1], loader);
-    std::vector<Object> objects;
     //loader.load();
 
     double lastCursorX, lastCursorY;
@@ -389,7 +401,7 @@ int main(int argc, char** argv)
 
         camera.setTarget(camera.getPosition() + dir);
 
-        renderer.render(objects, camera);
+        ctx.renderer.render(ctx.objects, camera);
         ImGui::Text("FPS: %.1f", imio.Framerate);
 
         ImGui::End();
