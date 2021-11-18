@@ -76,9 +76,12 @@ void drop_callback(GLFWwindow* window, int count, const char** paths)
     {
         const char* path = paths[i];
         if (endsWith(path, ".gltf")) {
-            std::cout << "GLTF";
+            std::cout << "GLTF" << std::endl;
         } else if (endsWith(path, ".hdr")) {
-            std::cout << "HDR";
+            std::cout << "HDR" << std::endl;
+            Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
+            ImageTexture tex(path);
+            renderer->setSkyboxFromEquirectangular(tex, 512, 512);
         }
     }
 }
@@ -318,10 +321,10 @@ int main(int argc, char** argv)
 
     Camera camera;
     camera.setPosition(glm::vec3(0.f, 0.f, 3.f));
-    glfwSetWindowUserPointer(window, &camera);
 
     TextureLoader loader;
     Renderer renderer(WIDTH, HEIGHT, loader);
+    glfwSetWindowUserPointer(window, &renderer);
     //ImageTexture envmap("res/photo_studio_loft_hall_4k.hdr");
 
     //renderer.setSkyboxFromEquirectangular(envmap, 512, 512);
