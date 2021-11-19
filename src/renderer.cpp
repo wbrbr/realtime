@@ -318,6 +318,7 @@ void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 li
     TracyGpuZone("Shading pass");
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     const Cubemap* skyboxMap = nullptr;
     switch(skybox_choice) {
