@@ -254,7 +254,7 @@ SSAOPass::SSAOPass(unsigned int width, unsigned int height)
     bias = 0;
 }
 
-void SSAOPass::execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int position_tex, unsigned int normal_tex, unsigned int rough_met_tex, unsigned int vao)
+void SSAOPass::execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int normal_tex, unsigned int rough_met_tex, unsigned int depth_tex, unsigned int vao)
 {
     ZoneScopedN("SSAO");
     TracyGpuZone("SSAO");
@@ -265,10 +265,10 @@ void SSAOPass::execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int posi
     // glClearColor(1., 1., 1., 1.);
     // glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(program.id());
-    glUniform1i(program.getLoc("positiontex"), 0);
-    glUniform1i(program.getLoc("normaltex"), 1);
-    glUniform1i(program.getLoc("noisetex"), 2);
-    glUniform1i(program.getLoc("roughmettex"), 3);
+    glUniform1i(program.getLoc("normaltex"), 0);
+    glUniform1i(program.getLoc("noisetex"), 1);
+    glUniform1i(program.getLoc("roughmettex"), 2);
+    glUniform1i(program.getLoc("depthtex"), 3);
     glUniformMatrix4fv(program.getLoc("worldtoview"), 1, GL_FALSE, glm::value_ptr(view_mat));
     glUniformMatrix4fv(program.getLoc("projection"), 1, GL_FALSE, glm::value_ptr(proj_mat));
     glUniform3fv(program.getLoc("samples"), 64, reinterpret_cast<float*>(samples.data()));
@@ -276,13 +276,13 @@ void SSAOPass::execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int posi
     glUniform1f(program.getLoc("bias"), bias);
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, position_tex);
-    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, normal_tex);
-    glActiveTexture(GL_TEXTURE2);
+    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, noise_tex);
-    glActiveTexture(GL_TEXTURE3);
+    glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, rough_met_tex);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, depth_tex);
     glBindVertexArray(vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
@@ -480,7 +480,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     glDisable(GL_DEPTH_TEST);
 
     if (ssao_pass.enabled) {
-        ssao_pass.execute(camera.getViewMatrix(), jitter_mat * proj_mat, geometry_pass.position_tex, geometry_pass.normal_tex, geometry_pass.rough_met_tex, dummy_vao);
+        ssao_pass.execute(camera.getViewMatrix(), jitter_mat * proj_mat, geometry_pass.normal_tex, geometry_pass.rough_met_tex, geometry_pass.depth_texture, dummy_vao);
     } else {
         float white[] = { 1.f, 1.f, 1.f, 1.f };
         glBindFramebuffer(GL_FRAMEBUFFER, ssao_pass.fbo);

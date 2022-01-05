@@ -4,7 +4,7 @@ in vec2 TexCoords;
 
 #define NUM_SAMPLES 64
 
-uniform sampler2D positiontex;
+uniform sampler2D depthtex;
 uniform sampler2D normaltex;
 uniform sampler2D roughmettex;
 uniform sampler2D noisetex;
@@ -17,11 +17,29 @@ uniform mat4 projection; // view space to clip space
 uniform float radius;
 uniform float bias;
 
+vec3 reconstruct_world_position(vec2 uv)
+{
+    mat4 ClipToView = inverse(projection);
+    mat4 ViewToWorld = inverse(worldtoview);
+
+    vec2 xy = 2.0 * uv - vec2(1.0);
+    float z = texture(depthtex, uv).r * 2 - 1;
+
+    vec4 clip = vec4(xy, z, 1);
+    vec4 view = ClipToView * clip;
+    view.xyz /= view.w;
+    view.w = 1;
+
+    vec4 world = ViewToWorld * view;
+    return world.xyz;
+}
+
 void main()
 {
     vec3 randomvec = texture(noisetex, TexCoords * vec2(500., 300.)).rgb;
     vec3 N = normalize(mat3(worldtoview) * texture(normaltex, TexCoords).rgb); // by casting mat4 to mat3 we get rid of the translation
-    vec3 position = vec3(worldtoview * texture(positiontex, TexCoords).rgba);
+    vec3 position = (worldtoview * vec4(reconstruct_world_position(TexCoords), 1)).xyz;
+    float opaque = texture(roughmettex, TexCoords).r;
 
     vec3 tangent = normalize(randomvec - N * dot(randomvec, N));
     vec3 bitangent = cross(N, tangent);
@@ -39,10 +57,12 @@ void main()
         coords = projection * coords; // we project the sample to the screen (clip space)
         coords.xyz /= coords.w; // perspective divide (-> normalized device coordinates)
         coords.xyz = coords.xyz * .5 + .5; // [-1, 1] -> [0, 1]
-        float sampleDepth = (worldtoview * texture(positiontex, coords.xy)).z;
-        float opaque = texture(roughmettex, coords.xy).z;
+
+        // TODO: don't compute the position, just linearize the depth
+        float sampleDepth = (worldtoview * vec4(reconstruct_world_position(coords.xy), 1)).z;
+        float opaque = texture(roughmettex, coords.xy).r;
         occlusion += (sampleDepth >= sample_.z ? 1.0 : 0.0);
-        float originalDepth = (worldtoview * texture(positiontex, TexCoords)).z;
+        float originalDepth = position.z;
         float rangeCheck = opaque > 0.1 ? smoothstep(0.0, 1.0, radius / abs(originalDepth - sampleDepth)) : 0.0;
         occlusion += (sampleDepth >= sample_.z + bias ? 1.0 : 0.0) * rangeCheck;
     }
