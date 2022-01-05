@@ -17,10 +17,9 @@ uniform mat4 projection; // view space to clip space
 uniform float radius;
 uniform float bias;
 
-vec3 reconstruct_world_position(vec2 uv)
+vec3 reconstruct_view_position(vec2 uv)
 {
     mat4 ClipToView = inverse(projection);
-    mat4 ViewToWorld = inverse(worldtoview);
 
     vec2 xy = 2.0 * uv - vec2(1.0);
     float z = texture(depthtex, uv).r * 2 - 1;
@@ -30,16 +29,14 @@ vec3 reconstruct_world_position(vec2 uv)
     view.xyz /= view.w;
     view.w = 1;
 
-    vec4 world = ViewToWorld * view;
-    return world.xyz;
+    return view.xyz;
 }
 
 void main()
 {
     vec3 randomvec = texture(noisetex, TexCoords * vec2(500., 300.)).rgb;
     vec3 N = normalize(mat3(worldtoview) * texture(normaltex, TexCoords).rgb); // by casting mat4 to mat3 we get rid of the translation
-    vec3 position = (worldtoview * vec4(reconstruct_world_position(TexCoords), 1)).xyz;
-    float opaque = texture(roughmettex, TexCoords).r;
+    vec3 position = reconstruct_view_position(TexCoords);
 
     vec3 tangent = normalize(randomvec - N * dot(randomvec, N));
     vec3 bitangent = cross(N, tangent);
@@ -59,7 +56,7 @@ void main()
         coords.xyz = coords.xyz * .5 + .5; // [-1, 1] -> [0, 1]
 
         // TODO: don't compute the position, just linearize the depth
-        float sampleDepth = (worldtoview * vec4(reconstruct_world_position(coords.xy), 1)).z;
+        float sampleDepth = reconstruct_view_position(coords.xy).z;
         float opaque = texture(roughmettex, coords.xy).r;
         occlusion += (sampleDepth >= sample_.z ? 1.0 : 0.0);
         float originalDepth = position.z;
