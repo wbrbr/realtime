@@ -11,25 +11,32 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+void fillNoiseTexture(unsigned int tex)
+{
+    glm::vec3 noise[16];
+    static std::uniform_real_distribution<float> dist(0., 1.);
+    static std::default_random_engine gen;
+    for (unsigned int i = 0; i < 16; i++) {
+        noise[i] = glm::vec3(dist(gen) * 2. - 1.,
+                             dist(gen) * 2. - 1.,
+                             0.);
+    }
+
+    glTextureSubImage2D(tex, 0, 0, 0, 4, 4, GL_RGB, GL_FLOAT, noise);
+}
+
 unsigned int createNoiseTexture()
 {
     unsigned int noise_tex;
     glGenTextures(1, &noise_tex);
-    std::vector<glm::vec3> noise;
-    std::uniform_real_distribution<float> dist(0., 1.);
-    std::default_random_engine gen;
-    for (unsigned int i = 0; i < 16; i++) {
-        noise.push_back(glm::vec3(dist(gen) * 2. - 1.,
-            dist(gen) * 2. - 1.,
-            0.));
-    }
-    glGenTextures(1, &noise_tex);
     glBindTexture(GL_TEXTURE_2D, noise_tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 4, 4, 0, GL_RGB, GL_FLOAT, noise.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 4, 4, 0, GL_RGB, GL_FLOAT, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    fillNoiseTexture(noise_tex);
 
     return noise_tex;
 }
@@ -251,6 +258,8 @@ void SSAOPass::execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int posi
 {
     ZoneScopedN("SSAO");
     TracyGpuZone("SSAO");
+
+    fillNoiseTexture(noise_tex);
     // === SSAO PASS ===
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     // glClearColor(1., 1., 1., 1.);
