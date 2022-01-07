@@ -103,6 +103,16 @@ private:
     bool neighborhood_clamping;
 };
 
+struct DebugDrawPass {
+public:
+    DebugDrawPass();
+    void execute(const std::vector<Object>& objects, glm::mat4 clip_from_world);
+
+private:
+    Shader program;
+    unsigned int box_vao;
+};
+
 class Renderer {
 public:
     Renderer(unsigned int width, unsigned int height, TextureLoader& loader);
@@ -111,12 +121,16 @@ public:
     void setSkyboxFromEquirectangular(const ImageTexture& texture, unsigned int width, unsigned int height);
 
 private:
+    void doFrustrumCulling(std::vector<Object>& objects, Camera cam);
+
     unsigned int width, height;
     GeometryPass geometry_pass;
     ShadowPass shadow_pass;
     SSAOPass ssao_pass;
     ShadingPass shading_pass;
     TAAPass taa_pass;
+    DebugDrawPass debug_draw_pass;
+
     Shader draw_program;
     Shader draw_depth_program;
     Shader equirectangular_to_cubemap_program;

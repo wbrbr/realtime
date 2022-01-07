@@ -5,7 +5,7 @@ project(realtime)
 set(CMAKE_BINARY_DIR ${CMAKE_BUILD_DIR})
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 
-set(SRCS "src/camera.cpp" "src/halton.cpp" "src/main.cpp" "src/mesh.cpp" "src/renderer.cpp" "src/shader.cpp" "src/texture.cpp" "src/texture_loader.cpp" "src/transform.cpp")
+set(SRCS "src/box.cpp" "src/camera.cpp" "src/halton.cpp" "src/main.cpp" "src/mesh.cpp" "src/renderer.cpp" "src/shader.cpp" "src/texture.cpp" "src/texture_loader.cpp" "src/transform.cpp")
 set(IMGUI_SRC "${PROJECT_SOURCE_DIR}/external/imgui/src")
 list(APPEND SRCS "${IMGUI_SRC}/imgui_demo.cpp"
                  "${IMGUI_SRC}/imgui_draw.cpp"
