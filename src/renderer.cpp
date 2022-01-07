@@ -194,19 +194,13 @@ void GeometryPass::execute(const std::vector<Object>& objects, glm::mat4 clip_fr
 DebugDrawPass::DebugDrawPass()
     : program("shaders/debug_draw_box.vert", "shaders/debug_draw_box.frag")
 {
-    glCreateVertexArrays(1, &box_vao);
-    glBindVertexArray(box_vao);
-
-    glm::vec3 vertices[8] = {
-        glm::vec3(0, 0, 0),
-        glm::vec3(1, 0, 0),
-        glm::vec3(0, 1, 0),
-        glm::vec3(0, 0, 1),
-        glm::vec3(1, 0, 1),
-        glm::vec3(0, 1, 1),
-        glm::vec3(1, 1, 0),
-        glm::vec3(1, 1, 1)
-    };
+    glCreateVertexArrays(1, &boxes_vao);
+    glBindVertexArray(boxes_vao);
+    glGenBuffers(1, &boxes_vertex_buf);
+    glBindBuffer(GL_ARRAY_BUFFER, boxes_vertex_buf);
+    glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(glm::vec3), NULL, GL_STREAM_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
 
     unsigned int indices[] = {
         // bottom square
@@ -227,25 +221,19 @@ DebugDrawPass::DebugDrawPass()
         3, 5,
         4, 7
     };
-    unsigned int vertex_buffer, index_buffer;
-    glGenBuffers(1, &vertex_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(glm::vec3), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(0);
 
-    glGenBuffers(1, &index_buffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
+    glGenBuffers(1, &boxes_index_buf);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, boxes_index_buf);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 24 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
-
     glBindVertexArray(0);
-    glEnableVertexAttribArray(0);
 }
 
 void DebugDrawPass::execute(const std::vector<Object>& objects, glm::mat4 clip_from_world)
 {
     ZoneScopedN("Debug Draw Pass");
     TracyGpuZone("Debug Draw Pass");
+
+    vertices.clear();
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_DEPTH_TEST);
@@ -254,7 +242,8 @@ void DebugDrawPass::execute(const std::vector<Object>& objects, glm::mat4 clip_f
     glUniformMatrix4fv(program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(clip_from_world));
 
     for (auto obj : objects) {
-        glBindVertexArray(box_vao);
+        glBindVertexArray(boxes_vao);
+        glNamedBufferSubData(boxes_vertex_buf, 0, 8*sizeof(glm::vec3), obj.aabb.points);
         glUniformMatrix4fv(program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(obj.transform.getMatrix()));
         glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, (void*)0);
     }

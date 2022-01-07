@@ -4,7 +4,7 @@
 #include <glm/mat4x4.hpp>
 
 struct Box {
-    glm::vec3 points[6];
+    glm::vec3 points[8];
 
     Box transform(glm::mat4 mat);
 };

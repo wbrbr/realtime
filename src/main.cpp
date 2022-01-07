@@ -70,6 +70,32 @@ TexID loadTextureFromPath(aiString prefix, aiString fileName, const aiScene* sce
     }
 }
 
+void compute_aabb(Object& obj, const aiVector3D* vertices, size_t num_vertices)
+{
+    glm::vec3 min_ = glm::vec3(INFINITY, INFINITY, INFINITY);
+    glm::vec3 max_ =  glm::vec3(-INFINITY, -INFINITY, -INFINITY);
+
+    for (size_t i = 0; i < num_vertices; i++) {
+        min_.x = fmin(min_.x, vertices[i].x);
+        min_.y = fmin(min_.y, vertices[i].y);
+        min_.z = fmin(min_.z, vertices[i].z);
+
+        max_.x = fmax(max_.x, vertices[i].x);
+        max_.y = fmax(max_.y, vertices[i].y);
+        max_.z = fmax(max_.z, vertices[i].z);
+    }
+
+    obj.aabb.points[0] = glm::vec3(min_.x, min_.y, min_.z);
+    obj.aabb.points[1] = glm::vec3(max_.x, min_.y, min_.z);
+    obj.aabb.points[2] = glm::vec3(min_.x, max_.y, min_.z);
+    obj.aabb.points[3] = glm::vec3(min_.x, min_.y, max_.z);
+    obj.aabb.points[4] = glm::vec3(max_.x, min_.y, max_.z);
+    obj.aabb.points[5] = glm::vec3(min_.x, max_.y, max_.z);
+    obj.aabb.points[6] = glm::vec3(max_.x, max_.y, min_.z);
+    obj.aabb.points[7] = glm::vec3(max_.x, max_.y, max_.z);
+}
+
+
 Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index, TextureLoader& loader)
 {
     ZoneScoped;
@@ -194,6 +220,8 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
             obj.material.normalMap = loader.addMem(color, 1, 1);
         }
     }
+
+    compute_aabb(obj, m->mVertices, m->mNumVertices);
     return obj;
 }
 

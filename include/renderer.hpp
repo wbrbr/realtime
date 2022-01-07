@@ -110,7 +110,8 @@ public:
 
 private:
     Shader program;
-    unsigned int box_vao;
+    unsigned int boxes_vao, boxes_vertex_buf, boxes_index_buf;
+    std::vector<glm::vec3> vertices;
 };
 
 class Renderer {
