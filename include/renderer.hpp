@@ -148,5 +148,6 @@ private:
     bool can_screenshot;
 
     std::vector<Object> objects_culled; // make it a member to avoid allocating a new vector every frame
+    bool enable_frustrum_culling;
 };
 #endif

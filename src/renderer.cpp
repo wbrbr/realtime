@@ -136,6 +136,7 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
     , irradiance{512, 512}
     , loader(&loader)
     , can_screenshot(true)
+    , enable_frustrum_culling(true)
 {
     glGenVertexArrays(1, &dummy_vao);
 }
@@ -525,9 +526,14 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     jitter_mat[3][0] = jitter_ndc.x;
     jitter_mat[3][1] = jitter_ndc.y;
 
-    doFrustrumCulling(objects, camera, objects_culled);
+    if (enable_frustrum_culling) {
+        doFrustrumCulling(objects, camera, objects_culled);
+    } else {
+        objects_culled = objects; 
+    }
 
     if (ImGui::CollapsingHeader("Frustum culling")) {
+        ImGui::Checkbox("Enabled", &enable_frustrum_culling);
         ImGui::Text("Culled: %u", objects.size() - objects_culled.size());
         ImGui::Text("Num. remaining: %u\n", objects_culled.size());
     }
