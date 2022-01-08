@@ -761,22 +761,33 @@ void doFrustrumCulling(const std::vector<Object>& objects, Camera cam, std::vect
 
     remaining.clear();
 
-    for (int i = (int)objects.size() - 1; i >= 0; i--) {
-        if (!objects.empty()) {
-            Box bounding_box = objects[i].aabb.transform(objects[i].transform.getMatrix());
+    for (size_t i = 0; i < objects.size(); i++) {
+        Box bounding_box = objects[i].aabb.transform(objects[i].transform.getMatrix());
 
-            bool in = false;
-            for (size_t p_idx = 0; p_idx < 8; p_idx++) {
-                glm::vec3 world_coords = bounding_box.points[p_idx];
+        bool out_x_less = true;
+        bool out_x_greater = true;
+        bool out_y_less = true;
+        bool out_y_greater = true;
+        bool out_z_less = true;
+        bool out_z_greater = true;
 
-                glm::vec4 clip_coords = world_to_clip * glm::vec4(world_coords, 1);
+        for (size_t p_idx = 0; p_idx < 8; p_idx++) {
+            glm::vec3 world_coords = bounding_box.points[p_idx];
 
-                // TODO: true intersection test
-                if (fabs(clip_coords.x) <= clip_coords.w && fabs(clip_coords.y) <= clip_coords.w && fabs(clip_coords.z) <= clip_coords.w) {
-                    remaining.push_back(objects[i]);
-                    break;
-                }
-            }
+            glm::vec4 clip_coords = world_to_clip * glm::vec4(world_coords, 1);
+
+            out_x_less &= clip_coords.x < -clip_coords.w;
+            out_x_greater &= clip_coords.x > clip_coords.w;
+            out_y_less &= clip_coords.y < -clip_coords.w;
+            out_y_greater &= clip_coords.y > clip_coords.w;
+            out_z_less &= clip_coords.z < -clip_coords.w;
+            out_z_greater &= clip_coords.z > clip_coords.w;
+        }
+
+        bool cull = out_x_less || out_x_greater || out_y_less || out_y_greater || out_z_less || out_z_greater; 
+
+        if (!cull) {
+            remaining.push_back(objects[i]);
         }
     }
 }
