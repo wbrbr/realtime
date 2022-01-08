@@ -122,7 +122,6 @@ public:
     void setSkyboxFromEquirectangular(const ImageTexture& texture, unsigned int width, unsigned int height);
 
 private:
-    void doFrustrumCulling(std::vector<Object>& objects, Camera cam);
 
     unsigned int width, height;
     GeometryPass geometry_pass;
@@ -147,5 +146,7 @@ private:
     unsigned int dummy_vao;
 
     bool can_screenshot;
+
+    std::vector<Object> objects_culled; // make it a member to avoid allocating a new vector every frame
 };
 #endif

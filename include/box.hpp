@@ -6,6 +6,6 @@
 struct Box {
     glm::vec3 points[8];
 
-    Box transform(glm::mat4 mat);
+    Box transform(glm::mat4 mat) const;
 };
 #endif // REALTIME_BOX_HPP

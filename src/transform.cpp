@@ -13,7 +13,7 @@ void Transform::translateRelative(glm::vec3 vel)
     position += glm::vec3(transformed_vel.x, transformed_vel.y, transformed_vel.z);
 }
 
-glm::mat4 Transform::getMatrix()
+glm::mat4 Transform::getMatrix() const
 {
     auto rot_mat = glm::eulerAngleYXZ(rotation.y, rotation.x, rotation.z);
     auto trans_mat = glm::translate(glm::mat4(), position);

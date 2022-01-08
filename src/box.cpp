@@ -1,7 +1,7 @@
 #include <glm/vec4.hpp>
 #include "box.hpp"
 
-Box Box::transform(glm::mat4 mat)
+Box Box::transform(glm::mat4 mat) const
 {
     Box ret;
     for (unsigned int i = 0; i < 6; i++) {

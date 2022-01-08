@@ -12,6 +12,8 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+void doFrustrumCulling(const std::vector<Object>& objects, Camera cam, std::vector<Object>& remaining);
+
 void fillNoiseTexture(unsigned int tex)
 {
     glm::vec3 noise[16];
@@ -523,17 +525,15 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     jitter_mat[3][0] = jitter_ndc.x;
     jitter_mat[3][1] = jitter_ndc.y;
 
-    size_t num_objects_before_culling = objects.size();
-    doFrustrumCulling(objects, camera);
-    size_t num_objects_after_culling = objects.size();
+    doFrustrumCulling(objects, camera, objects_culled);
 
     if (ImGui::CollapsingHeader("Frustum culling")) {
-        ImGui::Text("Culled: %u", num_objects_before_culling - num_objects_after_culling);
-        ImGui::Text("Num. remaining: %u\n", num_objects_after_culling);
+        ImGui::Text("Culled: %u", objects.size() - objects_culled.size());
+        ImGui::Text("Num. remaining: %u\n", objects_culled.size());
     }
 
     glm::mat4 clip_from_world = jitter_mat * proj_mat * camera.getViewMatrix();
-    geometry_pass.execute(objects, clip_from_world, loader);
+    geometry_pass.execute(objects_culled, clip_from_world, loader);
 
     if (shadow_pass.enabled) {
         shadow_pass.execute(objects, lightMatrix);
@@ -747,11 +747,13 @@ void Renderer::setSkyboxFromEquirectangular(const ImageTexture &texture, unsigne
 
 #define MIN(a, b) (a > b) ? a : b
 
-void Renderer::doFrustrumCulling(std::vector<Object>& objects, Camera cam)
+void doFrustrumCulling(const std::vector<Object>& objects, Camera cam, std::vector<Object>& remaining)
 {
     ZoneScopedN("Frustum culling");
 
     glm::mat4 world_to_clip = cam.getPerspectiveMatrix() * cam.getViewMatrix();
+
+    remaining.clear();
 
     for (int i = (int)objects.size() - 1; i >= 0; i--) {
         if (!objects.empty()) {
@@ -765,15 +767,9 @@ void Renderer::doFrustrumCulling(std::vector<Object>& objects, Camera cam)
 
                 // TODO: true intersection test
                 if (fabs(clip_coords.x) <= clip_coords.w && fabs(clip_coords.y) <= clip_coords.w && fabs(clip_coords.z) <= clip_coords.w) {
-                    in = true;
+                    remaining.push_back(objects[i]);
                     break;
                 }
-            }
-
-            // the object is outside the view frustum, remove it
-            if (!in) {
-                objects[i] = objects.back();
-                objects.pop_back();
             }
         }
     }

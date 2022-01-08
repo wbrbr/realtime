@@ -11,6 +11,6 @@ public:
 
     Transform();
     void translateRelative(glm::vec3 vel);
-    glm::mat4 getMatrix();
+    glm::mat4 getMatrix() const;
 };
 #endif
