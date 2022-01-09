@@ -48,7 +48,7 @@ struct Context {
 };
 
 
-TexID loadTextureFromPath(aiString prefix, aiString fileName, const aiScene* scene, TextureLoader& loader)
+TexID loadTextureFromPath(aiString prefix, aiString fileName, const aiScene* scene, TextureLoader& loader, glm::vec4 defaultColor)
 {
     ZoneScoped;
     // embedded texture
@@ -66,7 +66,7 @@ TexID loadTextureFromPath(aiString prefix, aiString fileName, const aiScene* sce
         texPath.Append(fileName.C_Str());
         std::string p { texPath.C_Str() };
         std::replace(p.begin(), p.end(), '\\', '/');
-        return loader.queueFile(p);
+        return loader.queueFile(p, defaultColor);
     }
 }
 
@@ -187,7 +187,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
         material->GetTexture(aiTextureType_DIFFUSE, 0, &filePath);
         aiString texPath(prefix);
         if (filePath.length > 0) {
-            obj.material.albedoMap = loadTextureFromPath(prefix, filePath, scene, loader);
+            obj.material.albedoMap = loadTextureFromPath(prefix, filePath, scene, loader, glm::vec4(.7, .7, .7, 1));
         } else {
             std::cerr << "no baseColor texture" << std::endl;
             unsigned char color[] = { 255, 0, 255, 255 };
@@ -195,7 +195,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
         }
         material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &filePath);
         if (filePath.length > 0) {
-            obj.material.roughnessMetallicMap = loadTextureFromPath(prefix, filePath, scene, loader);
+            obj.material.roughnessMetallicMap = loadTextureFromPath(prefix, filePath, scene, loader, glm::vec4(0,1,0,1));
         } else {
             std::cerr << "no roughness/metallic texture" << std::endl;
             // roughness = 1, metallic = 0
@@ -209,7 +209,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
             if (filePath.length == 0) {
                 normalMap = false;
             } else {
-                obj.material.normalMap = loadTextureFromPath(prefix, filePath, scene, loader);
+                obj.material.normalMap = loadTextureFromPath(prefix, filePath, scene, loader, glm::vec4(0.5, 0.5, 1, 1));
             }
         } else {
             normalMap = false;

@@ -20,12 +20,15 @@ ImageTexture* TextureLoader::get(TexID id)
     return &textures[id.id];
 }
 
-TexID TextureLoader::queueFile(std::string path)
+TexID TextureLoader::queueFile(std::string path, glm::vec4 defaultColor)
 {
     textures.push_back(ImageTexture(nullptr, 0, 0));
-    TexID id { textures.size() - 1 };
-    paths_queue.push_back(std::make_pair(id, path));
-    return id;
+    QueuedTexture queued_tex;
+    queued_tex.id = TexID { textures.size() - 1 };
+    queued_tex.path = path;
+    queued_tex.defaultColor = defaultColor;
+    paths_queue.push_back(queued_tex);
+    return queued_tex.id;
 }
 
 TexID TextureLoader::addMem(unsigned char* data, unsigned int width, unsigned int height)
@@ -53,23 +56,32 @@ void loadThread(std::mutex& mtx, std::vector<TextureLoader::QueuedTexture>& queu
             break;
         }
 
-        auto p = queue.back();
+        TextureLoader::QueuedTexture queued_tex = queue.back();
         queue.pop_back();
         mtx.unlock();
         ZoneScoped;
-        ZoneText(p.second.c_str(), p.second.size());
+        ZoneText(queued_tex.path.c_str(), queued_tex.path.size());
 
         int x, y, n;
-        unsigned char* data = stbi_load(p.second.c_str(), &x, &y, &n, 4);
+        unsigned char* data = stbi_load(queued_tex.path.c_str(), &x, &y, &n, 4);
 
-        if (data == NULL) {
-            std::cerr << "Texture loading failed: " << stbi_failure_reason() << " (" << p.second << ")" << std::endl;
-        }
         ImageDesc desc;
-        desc.data = data;
-        desc.id = p.first.id;
-        desc.width = x;
-        desc.height = y;
+        if (data == NULL) {
+            std::cerr << "Texture loading failed: " << stbi_failure_reason() << " (" << queued_tex.path << ")" << std::endl;
+            desc.data = static_cast<unsigned char*>(malloc(4));
+            desc.data[0] = (unsigned char)(queued_tex.defaultColor.r * 255.99f);
+            desc.data[1] = (unsigned char)(queued_tex.defaultColor.g * 255.99f);
+            desc.data[2] = (unsigned char)(queued_tex.defaultColor.b * 255.99f);
+            desc.data[3] = (unsigned char)(queued_tex.defaultColor.a * 255.99f);
+            desc.id = queued_tex.id.id;
+            desc.width = 1;
+            desc.height = 1;
+        } else {
+            desc.data = data;
+            desc.id = queued_tex.id.id;
+            desc.width = x;
+            desc.height = y;
+        }
 
         buf_mtx.lock();
         LockMark(buf_mtx);
