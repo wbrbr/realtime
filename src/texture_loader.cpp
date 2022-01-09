@@ -4,6 +4,8 @@
 #include "stb_image.h"
 #include <iostream>
 #include <thread>
+#include <glm/gtc/type_ptr.hpp>
+#include <mutex>
 
 TextureLoader::~TextureLoader()
 {
@@ -39,7 +41,7 @@ struct ImageDesc {
     unsigned int id;
 };
 
-void loadThread(tracy::Lockable<std::mutex>& mtx, std::vector<std::pair<TexID, std::string>>& queue, std::vector<ImageDesc>& buffers, tracy::Lockable<std::mutex>& buf_mtx)
+void loadThread(std::mutex& mtx, std::vector<TextureLoader::QueuedTexture>& queue, std::vector<ImageDesc>& buffers, std::mutex& buf_mtx)
 {
     ZoneScoped;
 
@@ -81,8 +83,8 @@ void TextureLoader::load()
     ZoneScoped;
     constexpr unsigned int N = 4;
     std::array<std::thread, N> threads;
-    TracyLockable(std::mutex, queue_mtx);
-    TracyLockable(std::mutex, buf_mtx);
+    std::mutex queue_mtx;
+    std::mutex buf_mtx;
 
     std::vector<ImageDesc> buffers;
     buffers.reserve(paths_queue.size());
