@@ -149,5 +149,12 @@ private:
 
     std::vector<Object> objects_culled; // make it a member to avoid allocating a new vector every frame
     bool enable_frustrum_culling;
+
+    /// The camera used for frustum/occlusion culling
+    /// in general it is the one passed to render()
+    /// when Debug Camera is enabled, culling_camera is frozen and doesn't
+    /// match the render camera anymore
+    Camera culling_camera;
+    bool enable_debug_camera;
 };
 #endif

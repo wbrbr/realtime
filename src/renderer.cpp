@@ -137,6 +137,7 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
     , loader(&loader)
     , can_screenshot(true)
     , enable_frustrum_culling(true)
+    , enable_debug_camera(false)
 {
     glGenVertexArrays(1, &dummy_vao);
 }
@@ -510,6 +511,12 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
         float sg = glm::dot(up, lightDir);
         up = sg * glm::vec3(0.f, 0.f, -1.f);
     }
+    
+    ImGui::Checkbox("Debug Camera", &enable_debug_camera);
+
+    if (!enable_debug_camera) {
+        culling_camera = camera;
+    }
 
     glm::mat4 lightProjection = glm::ortho(-planeWidth, planeWidth, -planeHeight, planeHeight, zNear, zFar);
     glm::mat4 lightView = glm::lookAt(sunlightPosition, lightDir, up);
@@ -527,7 +534,7 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     jitter_mat[3][1] = jitter_ndc.y;
 
     if (enable_frustrum_culling) {
-        doFrustrumCulling(objects, camera, objects_culled);
+        doFrustrumCulling(objects, culling_camera, objects_culled);
     } else {
         objects_culled = objects; 
     }
