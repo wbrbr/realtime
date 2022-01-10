@@ -107,6 +107,7 @@ struct DebugDrawPass {
 public:
     DebugDrawPass();
     void execute(const std::vector<Object>& objects, glm::mat4 clip_from_world);
+    void drawFrustum(const Camera& frustumCamera, const Camera& viewCamera);
 
 private:
     Shader program;

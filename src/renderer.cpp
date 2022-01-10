@@ -245,6 +245,7 @@ void DebugDrawPass::execute(const std::vector<Object>& objects, glm::mat4 clip_f
 
     glUseProgram(program.id());
     glUniformMatrix4fv(program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(clip_from_world));
+    glUniform3f(program.getLoc("color"), 1, 0, 0);
 
     for (auto obj : objects) {
         glBindVertexArray(boxes_vao);
@@ -252,6 +253,35 @@ void DebugDrawPass::execute(const std::vector<Object>& objects, glm::mat4 clip_f
         glUniformMatrix4fv(program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(obj.transform.getMatrix()));
         glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, (void*)0);
     }
+}
+
+void DebugDrawPass::drawFrustum(const Camera& frustumCamera, const Camera& viewCamera)
+{
+    glm::mat4 world_to_clip = frustumCamera.getPerspectiveMatrix() * frustumCamera.getViewMatrix();
+    glm::mat4 clip_to_world = glm::inverse(world_to_clip);
+
+    vertices.clear();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDisable(GL_DEPTH_TEST);
+    glUseProgram(program.id());
+    glUniformMatrix4fv(program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(viewCamera.getPerspectiveMatrix()*viewCamera.getViewMatrix()));
+    glUniform3f(program.getLoc("color"), 0, 1, 0);
+
+    glm::vec3 vertices[] = {
+        glm::vec3(0, 0, 0),
+        glm::vec3(1, 0, 0),
+        glm::vec3(0, 1, 0),
+        glm::vec3(0, 0, 1),
+        glm::vec3(1, 0, 1),
+        glm::vec3(0, 1, 1),
+        glm::vec3(1, 1, 0),
+        glm::vec3(1, 1, 1)
+    };
+
+    glBindVertexArray(boxes_vao);
+    glNamedBufferSubData(boxes_vertex_buf, 0, 8*sizeof(glm::vec3), vertices);
+    glUniformMatrix4fv(program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(clip_to_world));
+    glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, (void*)0);
 }
 
 ShadowPass::ShadowPass()
@@ -626,7 +656,11 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     glBindVertexArray(dummy_vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
-    debug_draw_pass.execute(objects, camera.getPerspectiveMatrix() * camera.getViewMatrix());
+    debug_draw_pass.execute(objects_culled, camera.getPerspectiveMatrix() * camera.getViewMatrix());
+
+    if (enable_debug_camera) {
+        debug_draw_pass.drawFrustum(culling_camera, camera);
+    }
 
     if (ImGui::Button("Screenshot") && can_screenshot) {
         can_screenshot = false;
