@@ -50,7 +50,6 @@ void loadThread(std::mutex& mtx, std::vector<TextureLoader::QueuedTexture>& queu
 
     while (true) {
         mtx.lock();
-        LockMark(mtx);
         if (queue.empty()) {
             mtx.unlock();
             break;
@@ -84,7 +83,6 @@ void loadThread(std::mutex& mtx, std::vector<TextureLoader::QueuedTexture>& queu
         }
 
         buf_mtx.lock();
-        LockMark(buf_mtx);
         buffers.push_back(desc);
         buf_mtx.unlock();
     }
