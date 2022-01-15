@@ -6,6 +6,12 @@
 #include "glm/gtx/euler_angles.hpp"
 #include <iostream>
 
+Camera::Camera()
+    : zNear(1)
+    , zFar(2000)
+{
+}
+
 glm::mat4 Camera::getViewMatrix() const
 {
     return matrix;
@@ -13,7 +19,7 @@ glm::mat4 Camera::getViewMatrix() const
 
 glm::mat4 Camera::getPerspectiveMatrix() const
 {
-    return glm::perspective(glm::radians(60.f), 16.f / 9.f, 1.f, 10000.f);
+    return glm::perspective(glm::radians(60.f), 16.f / 9.f, zNear, zFar);
 }
 
 void Camera::setPosition(glm::vec3 v)

@@ -118,7 +118,8 @@ private:
 class Renderer {
 public:
     Renderer(unsigned int width, unsigned int height, TextureLoader& loader);
-    void render(std::vector<Object> objects, Camera cam);
+    // TODO: put the UI stuff in another method, and make render take a const reference (or copy) of cam
+    void render(const std::vector<Object>& objects, Camera& cam);
     void setSkybox(Cubemap* skybox);
     void setSkyboxFromEquirectangular(const ImageTexture& texture, unsigned int width, unsigned int height);
 

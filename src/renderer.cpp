@@ -511,10 +511,15 @@ void ShadingPass::drawUI()
     }
 }
 
-void Renderer::render(std::vector<Object> objects, Camera camera)
+void Renderer::render(const std::vector<Object>& objects, Camera& camera)
 {
     ZoneScopedN("Render (CPU)");
     TracyGpuZone("Render (GPU)");
+
+    if (ImGui::CollapsingHeader("Camera")) {
+        ImGui::DragFloat("Near plane", &camera.zNear);
+        ImGui::DragFloat("Far plane", &camera.zFar);
+    }
 
     static float lightZFar = 10.f;
     static float lightZNear = 0.1f;
