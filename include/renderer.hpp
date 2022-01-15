@@ -159,5 +159,7 @@ private:
     /// match the render camera anymore
     Camera culling_camera;
     bool enable_debug_camera;
+
+    bool enable_aabbs;
 };
 #endif

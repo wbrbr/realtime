@@ -138,6 +138,7 @@ Renderer::Renderer(unsigned int width, unsigned int height, TextureLoader& loade
     , can_screenshot(true)
     , enable_frustrum_culling(true)
     , enable_debug_camera(false)
+    , enable_aabbs(false)
 {
     glGenVertexArrays(1, &dummy_vao);
 }
@@ -548,7 +549,10 @@ void Renderer::render(const Scene& scene, Camera& camera)
         up = sg * glm::vec3(0.f, 0.f, -1.f);
     }
 
-    ImGui::Checkbox("Debug Camera", &enable_debug_camera);
+    if (ImGui::CollapsingHeader("Debug view")) {
+        ImGui::Checkbox("Debug Camera", &enable_debug_camera);
+        ImGui::Checkbox("Bounding boxes", &enable_aabbs);
+    }
     
     if (!enable_debug_camera) {
         culling_camera = camera;
@@ -662,7 +666,9 @@ void Renderer::render(const Scene& scene, Camera& camera)
     glBindVertexArray(dummy_vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
-    debug_draw_pass.execute(objects_culled, camera.getPerspectiveMatrix() * camera.getViewMatrix());
+    if (enable_aabbs) {
+		debug_draw_pass.execute(objects_culled, camera.getPerspectiveMatrix() * camera.getViewMatrix());
+    }
 
     if (enable_debug_camera) {
         debug_draw_pass.drawFrustum(culling_camera, camera);
