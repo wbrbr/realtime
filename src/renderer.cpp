@@ -439,6 +439,7 @@ void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 li
         glBindVertexArray(cube_vao);
         glUseProgram(skybox_program.id());
         glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix()))));
+        glUniform1f(skybox_program.getLoc("scale"), 0.5f*(camera.zNear+camera.zFar));
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxMap->id());
         glUniform1i(skybox_program.getLoc("skybox"), 0);
