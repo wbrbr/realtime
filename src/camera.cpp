@@ -13,7 +13,7 @@ glm::mat4 Camera::getViewMatrix() const
 
 glm::mat4 Camera::getPerspectiveMatrix() const
 {
-    return glm::perspective(glm::radians(60.f), 16.f / 9.f, 0.1f, 2000.f);
+    return glm::perspective(glm::radians(60.f), 16.f / 9.f, 1.f, 10000.f);
 }
 
 void Camera::setPosition(glm::vec3 v)

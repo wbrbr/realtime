@@ -516,16 +516,16 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     ZoneScopedN("Render (CPU)");
     TracyGpuZone("Render (GPU)");
 
-    static float zFar = 10.f;
-    static float zNear = 0.1f;
+    static float lightZFar = 10.f;
+    static float lightZNear = 0.1f;
     static float planeWidth = 1.f;
     static float planeHeight = 1.f;
     static glm::vec3 sunlightPosition(0.f, 10.f, 0.f);
     ImGui::Text("Position: (%f, %f, %f)", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
     if (ImGui::CollapsingHeader("Directional light")) {
         ImGui::DragFloat3("Position", glm::value_ptr(sunlightPosition));
-        ImGui::DragFloat("Near plane", &zNear);
-        ImGui::DragFloat("Far plane", &zFar);
+        ImGui::DragFloat("Near plane", &lightZNear);
+        ImGui::DragFloat("Far plane", &lightZFar);
         ImGui::DragFloat("Plane width", &planeWidth);
         ImGui::DragFloat("Plane height", &planeHeight);
         ImGui::Separator();
@@ -541,14 +541,14 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
         float sg = glm::dot(up, lightDir);
         up = sg * glm::vec3(0.f, 0.f, -1.f);
     }
-    
-    ImGui::Checkbox("Debug Camera", &enable_debug_camera);
 
+    ImGui::Checkbox("Debug Camera", &enable_debug_camera);
+    
     if (!enable_debug_camera) {
         culling_camera = camera;
     }
 
-    glm::mat4 lightProjection = glm::ortho(-planeWidth, planeWidth, -planeHeight, planeHeight, zNear, zFar);
+    glm::mat4 lightProjection = glm::ortho(-planeWidth, planeWidth, -planeHeight, planeHeight, lightZNear, lightZFar);
     glm::mat4 lightView = glm::lookAt(sunlightPosition, lightDir, up);
     glm::mat4 lightMatrix = lightProjection * lightView;
 
@@ -647,8 +647,8 @@ void Renderer::render(std::vector<Object> objects, Camera camera)
     glBindTexture(GL_TEXTURE_2D, display_tex);
     if (current == 8) {
         glUseProgram(draw_depth_program.id());
-        glUniform1f(draw_depth_program.getLoc("zNear"), zNear);
-        glUniform1f(draw_depth_program.getLoc("zFar"), zFar);
+        glUniform1f(draw_depth_program.getLoc("zNear"), lightZNear);
+        glUniform1f(draw_depth_program.getLoc("zFar"), lightZFar);
     } else {
         glUseProgram(draw_program.id());
         glUniform2f(draw_program.getLoc("jitter"), jitter_ndc.x, jitter_ndc.y);
@@ -792,7 +792,7 @@ void Renderer::setSkyboxFromEquirectangular(const ImageTexture &texture, unsigne
     glDispatchCompute(width/8, height/8, 6);
 }
 
-#define MIN(a, b) (a > b) ? a : b
+#define MIN(a, b) ((a > b) ? a : b)
 
 void doFrustrumCulling(const std::vector<Object>& objects, Camera cam, std::vector<Object>& remaining)
 {
