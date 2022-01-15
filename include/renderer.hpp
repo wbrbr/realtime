@@ -4,6 +4,7 @@
 #include "halton.hpp"
 #include "object.hpp"
 #include "shader.hpp"
+#include "scene.hpp"
 #include "texture_loader.hpp"
 #include <vector>
 
@@ -119,7 +120,7 @@ class Renderer {
 public:
     Renderer(unsigned int width, unsigned int height, TextureLoader& loader);
     // TODO: put the UI stuff in another method, and make render take a const reference (or copy) of cam
-    void render(const std::vector<Object>& objects, Camera& cam);
+    void render(const Scene& scene, Camera& cam);
     void setSkybox(Cubemap* skybox);
     void setSkyboxFromEquirectangular(const ImageTexture& texture, unsigned int width, unsigned int height);
 

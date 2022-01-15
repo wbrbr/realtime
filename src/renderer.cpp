@@ -511,7 +511,7 @@ void ShadingPass::drawUI()
     }
 }
 
-void Renderer::render(const std::vector<Object>& objects, Camera& camera)
+void Renderer::render(const Scene& scene, Camera& camera)
 {
     ZoneScopedN("Render (CPU)");
     TracyGpuZone("Render (GPU)");
@@ -569,14 +569,14 @@ void Renderer::render(const std::vector<Object>& objects, Camera& camera)
     jitter_mat[3][1] = jitter_ndc.y;
 
     if (enable_frustrum_culling) {
-        doFrustrumCulling(objects, culling_camera, objects_culled);
+        doFrustrumCulling(scene.objects, culling_camera, objects_culled);
     } else {
-        objects_culled = objects; 
+        objects_culled = scene.objects; 
     }
 
     if (ImGui::CollapsingHeader("Frustum culling")) {
         ImGui::Checkbox("Enabled", &enable_frustrum_culling);
-        ImGui::Text("Culled: %u", objects.size() - objects_culled.size());
+        ImGui::Text("Culled: %u", scene.objects.size() - objects_culled.size());
         ImGui::Text("Num. remaining: %u\n", objects_culled.size());
     }
 
@@ -584,7 +584,7 @@ void Renderer::render(const std::vector<Object>& objects, Camera& camera)
     geometry_pass.execute(objects_culled, clip_from_world, loader);
 
     if (shadow_pass.enabled) {
-        shadow_pass.execute(objects, lightMatrix);
+        shadow_pass.execute(scene.objects, lightMatrix);
     } else {
         float val = 1.f;
         glBindFramebuffer(GL_FRAMEBUFFER, shadow_pass.fbo);

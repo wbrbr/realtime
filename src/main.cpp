@@ -40,7 +40,7 @@ bool flyMode = true;
 struct Context {
     TextureLoader loader;
     Renderer renderer;
-    std::vector<Object> objects;
+    Scene scene;
 
     Context()
         : renderer(WIDTH, HEIGHT, loader)
@@ -227,23 +227,41 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
 
 
 
-std::vector<Object> loadFile(std::string path, TextureLoader& loader)
+Scene loadFile(std::string path, TextureLoader& loader)
 {
     ZoneScoped;
-    std::vector<Object> res;
+    Scene scene;
 
     Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
-    if (!scene) {
+    const aiScene* assimp_scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
+    if (!assimp_scene) {
         std::cerr << importer.GetErrorString() << std::endl;
-        return res;
+        return scene;
     }
 
-    for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
-        res.push_back(loadMesh(path, scene, i, loader));
+    glm::vec3 scene_min = glm::vec3(INFINITY, INFINITY, INFINITY);
+    glm::vec3 scene_max = glm::vec3(-INFINITY, -INFINITY, -INFINITY);
+
+    scene.objects.resize(assimp_scene->mNumMeshes);
+
+    for (unsigned int i = 0; i < assimp_scene->mNumMeshes; i++) {
+        scene.objects[i] = loadMesh(path, assimp_scene, i, loader);
+
+        glm::vec3 aabb_min = scene.objects[i].aabb.points[0];
+        glm::vec3 aabb_max = scene.objects[i].aabb.points[7];
+
+        scene_min.x = fmin(scene_min.x, aabb_min.x);
+        scene_min.y = fmin(scene_min.y, aabb_min.y);
+        scene_min.z = fmin(scene_min.z, aabb_min.z);
+        scene_max.x = fmax(scene_max.x, aabb_max.x);
+        scene_max.y = fmax(scene_max.y, aabb_max.y);
+        scene_max.z = fmax(scene_max.z, aabb_max.z);
     }
 
-    return res;
+    glm::vec3 extents = scene_max - scene_min;
+    scene.radius = fmax(fmax(extents.x, extents.y), extents.z);
+
+    return scene;
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -286,7 +304,7 @@ void drop_callback(GLFWwindow* window, int count, const char** paths)
     {
         const char* path = paths[i];
         if (endsWith(path, ".gltf")) {
-            ctx->objects = loadFile(std::string(path), ctx->loader);
+            ctx->scene = loadFile(std::string(path), ctx->loader);
             ctx->loader.load();
         } else if (endsWith(path, ".hdr")) {
             ImageTexture tex(path);
@@ -429,7 +447,7 @@ int main(int argc, char** argv)
 
         camera.setTarget(camera.getPosition() + dir);
 
-        ctx.renderer.render(ctx.objects, camera);
+        ctx.renderer.render(ctx.scene, camera);
         ImGui::Text("FPS: %.1f", imio.Framerate);
 
         ImGui::End();
