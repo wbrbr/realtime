@@ -41,6 +41,7 @@ struct Context {
     TextureLoader loader;
     Renderer renderer;
     Scene scene;
+    Camera camera;
 
     Context()
         : renderer(WIDTH, HEIGHT, loader)
@@ -259,7 +260,7 @@ Scene loadFile(std::string path, TextureLoader& loader)
     }
 
     glm::vec3 extents = scene_max - scene_min;
-    scene.radius = fmax(fmax(extents.x, extents.y), extents.z);
+    scene.radius = sqrt(2) * fmax(fmax(extents.x, extents.y), extents.z);
 
     return scene;
 }
@@ -306,6 +307,8 @@ void drop_callback(GLFWwindow* window, int count, const char** paths)
         if (endsWith(path, ".gltf")) {
             ctx->scene = loadFile(std::string(path), ctx->loader);
             ctx->loader.load();
+            ctx->camera.zFar = ctx->scene.radius;
+            ctx->camera.zNear = ctx->camera.zFar / 1000;
         } else if (endsWith(path, ".hdr")) {
             ImageTexture tex(path);
             ctx->renderer.setSkyboxFromEquirectangular(tex, 512, 512);
@@ -379,11 +382,11 @@ int main(int argc, char** argv)
 
     std::filesystem::current_path(BASE_DIR);
 
-    Camera camera;
-    camera.setPosition(glm::vec3(0.f, 0.f, 3.f));
 
     Context ctx;
     glfwSetWindowUserPointer(window, &ctx);
+
+    ctx.camera.setPosition(glm::vec3(0.f, 0.f, 3.f));
     //ImageTexture envmap("res/photo_studio_loft_hall_4k.hdr");
 
     //renderer.setSkyboxFromEquirectangular(envmap, 512, 512);
@@ -426,28 +429,28 @@ int main(int argc, char** argv)
         const float speed = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? 3.f * walkSpeed : walkSpeed;
         if (flyMode && !imio.WantCaptureKeyboard) {
             if (glfwGetKey(window, GLFW_KEY_A)) {
-                camera.setPosition(camera.getPosition() - speed * right);
+                ctx.camera.setPosition(ctx.camera.getPosition() - speed * right);
             }
             if (glfwGetKey(window, GLFW_KEY_D)) {
-                camera.setPosition(camera.getPosition() + speed * right);
+                ctx.camera.setPosition(ctx.camera.getPosition() + speed * right);
             }
             if (glfwGetKey(window, GLFW_KEY_W)) {
-                camera.setPosition(camera.getPosition() + speed * dir);
+                ctx.camera.setPosition(ctx.camera.getPosition() + speed * dir);
             }
             if (glfwGetKey(window, GLFW_KEY_S)) {
-                camera.setPosition(camera.getPosition() - speed * dir);
+                ctx.camera.setPosition(ctx.camera.getPosition() - speed * dir);
             }
             if (glfwGetKey(window, GLFW_KEY_SPACE)) {
-                camera.setPosition(camera.getPosition() + speed * up);
+                ctx.camera.setPosition(ctx.camera.getPosition() + speed * up);
             }
             if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)) {
-                camera.setPosition(camera.getPosition() - speed * up);
+                ctx.camera.setPosition(ctx.camera.getPosition() - speed * up);
             }
         }
 
-        camera.setTarget(camera.getPosition() + dir);
+        ctx.camera.setTarget(ctx.camera.getPosition() + dir);
 
-        ctx.renderer.render(ctx.scene, camera);
+        ctx.renderer.render(ctx.scene, ctx.camera);
         ImGui::Text("FPS: %.1f", imio.Framerate);
 
         ImGui::End();
