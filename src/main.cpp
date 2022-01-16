@@ -316,8 +316,11 @@ void drop_callback(GLFWwindow* window, int count, const char** paths)
     {
         const char* path = paths[i];
         if (endsWith(path, ".gltf")) {
+            std::cout << "Loading gltf\n" << std::endl;
             ctx->scene = loadFile(std::string(path), ctx->loader);
+            std::cout << "Loading textures\n" << std::endl;
             ctx->loader.load();
+            std::cout << "Done.\n" << std::endl;
             ctx->camera.zFar = ctx->scene.radius;
             ctx->camera.zNear = ctx->camera.zFar / 1000;
         } else if (endsWith(path, ".hdr")) {

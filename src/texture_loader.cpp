@@ -22,13 +22,19 @@ ImageTexture* TextureLoader::get(TexID id)
 
 TexID TextureLoader::queueFile(std::string path, glm::vec4 defaultColor)
 {
-    textures.push_back(ImageTexture(nullptr, 0, 0));
-    QueuedTexture queued_tex;
-    queued_tex.id = TexID { textures.size() - 1 };
-    queued_tex.path = path;
-    queued_tex.defaultColor = defaultColor;
-    paths_queue.push_back(queued_tex);
-    return queued_tex.id;
+    auto it = m_paths_ids_map.find(path);
+    if (it == m_paths_ids_map.end()) {
+        textures.push_back(ImageTexture(nullptr, 0, 0));
+        QueuedTexture queued_tex;
+        queued_tex.id = TexID { textures.size() - 1 };
+        queued_tex.path = path;
+        queued_tex.defaultColor = defaultColor;
+        paths_queue.push_back(queued_tex);
+        m_paths_ids_map[path] = queued_tex.id;
+        return queued_tex.id;
+    } else {
+        return it->second;
+    }
 }
 
 TexID TextureLoader::addMem(unsigned char* data, unsigned int width, unsigned int height)
@@ -62,6 +68,7 @@ void loadThread(std::mutex& mtx, std::vector<TextureLoader::QueuedTexture>& queu
         ZoneText(queued_tex.path.c_str(), queued_tex.path.size());
 
         int x, y, n;
+        std::cout << "Loading " << queued_tex.path << std::endl;
         unsigned char* data = stbi_load(queued_tex.path.c_str(), &x, &y, &n, 4);
 
         ImageDesc desc;

@@ -3,6 +3,7 @@
 #include "texture.hpp"
 #include <utility>
 #include <vector>
+#include <unordered_map>
 #include <glm/vec4.hpp>
 
 struct TexID {
@@ -28,5 +29,6 @@ public:
 
 private:
     std::vector<QueuedTexture> paths_queue;
+    std::unordered_map<std::string, TexID> m_paths_ids_map;
 };
 #endif
