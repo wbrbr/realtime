@@ -20,7 +20,11 @@ void main()
     position = Position;
 
     // === ALBEDO ===
-    albedo = pow(texture(albedoMap, TexCoords).rgb, vec3(2.2));
+    vec4 sample = texture(albedoMap, TexCoords);
+    if (sample.a < 0.5) {
+        discard;
+    }
+    albedo = pow(sample.rgb, vec3(2.2));
 
     // === NORMAL === 
     vec3 N = texture(normalMap, TexCoords).rgb;
