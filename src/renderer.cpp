@@ -150,11 +150,11 @@ GeometryPass::GeometryPass(unsigned int width, unsigned int height)
 {
     glGenFramebuffers(1, &fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    albedo_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
+    albedo_tex = create_texture(width, height, GL_RGB8, GL_RGB);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, albedo_tex, 0);
     normal_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normal_tex, 0);
-    rough_met_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
+    rough_met_tex = create_texture(width, height, GL_RGB8, GL_RGB);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, rough_met_tex, 0);
     position_tex = create_texture(width, height, GL_RGB32F, GL_RGB);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, position_tex, 0);
