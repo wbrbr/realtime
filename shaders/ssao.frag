@@ -52,18 +52,22 @@ void main()
         // we want the screen position of this sample
         vec4 coords = vec4(sample_, 1.);
         coords = projection * coords; // we project the sample to the screen (clip space)
-        coords.xyz /= coords.w; // perspective divide (-> normalized device coordinates)
-        coords.xyz = coords.xyz * .5 + .5; // [-1, 1] -> [0, 1]
 
-        // TODO: don't compute the position, just linearize the depth
-        float sampleDepth = reconstruct_view_position(coords.xy).z;
-        float opaque = texture(roughmettex, coords.xy).r;
-        occlusion += (sampleDepth >= sample_.z ? 1.0 : 0.0);
-        float originalDepth = position.z;
-        float rangeCheck = opaque > 0.1 ? smoothstep(0.0, 1.0, radius / abs(originalDepth - sampleDepth)) : 0.0;
-        occlusion += (sampleDepth >= sample_.z + bias ? 1.0 : 0.0) * rangeCheck;
+        // if the sample is outside the view frustum, assume that it doesn't occlude
+        if (all(lessThanEqual(abs(coords.xyz), vec3(coords.w)))) {
+            coords.xyz /= coords.w; // perspective divide (-> normalized device coordinates)
+            coords.xyz = coords.xyz * .5 + .5; // [-1, 1] -> [0, 1]
+
+            // TODO: don't compute the position, just linearize the depth
+            float sampleDepth = reconstruct_view_position(coords.xy).z;
+            float opaque = texture(roughmettex, coords.xy).r;
+            occlusion += (sampleDepth >= sample_.z ? 1.0 : 0.0);
+            float originalDepth = position.z;
+            float rangeCheck = opaque > 0.1 ? smoothstep(0.0, 1.0, radius / abs(originalDepth - sampleDepth)) : 0.0;
+            occlusion += (sampleDepth >= sample_.z + bias ? 1.0 : 0.0) * rangeCheck;
+        }
     }
 
-    occlusion = 1.0 - (occlusion / NUM_SAMPLES);
-    FragColor = vec4(occlusion, occlusion, occlusion, 1.);
+    float ret = 1.0 - (occlusion / NUM_SAMPLES);
+    FragColor = vec4(ret, ret, ret, 1.);
 }
