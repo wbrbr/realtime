@@ -11,6 +11,10 @@ public:
 
     Transform();
     void translateRelative(glm::vec3 vel);
-    glm::mat4 getMatrix() const;
+    glm::mat4 getMatrix();
+
+private:
+    bool dirty;
+    glm::mat4 m_matrix;
 };
 #endif

@@ -12,7 +12,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-void doFrustrumCulling(const std::vector<Object>& objects, Camera cam, std::vector<Object>& remaining);
+void doFrustumCulling(std::vector<Object>& objects, glm::mat4 world_to_clip, std::vector<Object>& remaining);
 
 void fillNoiseTexture(unsigned int tex)
 {
@@ -261,16 +261,15 @@ void DebugDrawPass::execute(const std::vector<Object>& objects, glm::mat4 clip_f
     }
 }
 
-void DebugDrawPass::drawFrustum(const Camera& frustumCamera, const Camera& viewCamera)
+void DebugDrawPass::drawFrustum(glm::mat4 debug_world_to_clip, glm::mat4 active_world_to_clip)
 {
-    glm::mat4 world_to_clip = frustumCamera.getPerspectiveMatrix() * frustumCamera.getViewMatrix();
-    glm::mat4 clip_to_world = glm::inverse(world_to_clip);
+    glm::mat4 debug_clip_to_world = glm::inverse(debug_world_to_clip);
 
     vertices.clear();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_DEPTH_TEST);
     glUseProgram(program.id());
-    glUniformMatrix4fv(program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(viewCamera.getPerspectiveMatrix()*viewCamera.getViewMatrix()));
+    glUniformMatrix4fv(program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(active_world_to_clip));
     glUniform3f(program.getLoc("color"), 0, 1, 0);
 
     glm::vec3 vertices[] = {
@@ -286,7 +285,7 @@ void DebugDrawPass::drawFrustum(const Camera& frustumCamera, const Camera& viewC
 
     glBindVertexArray(boxes_vao);
     glNamedBufferSubData(boxes_vertex_buf, 0, 8*sizeof(glm::vec3), vertices);
-    glUniformMatrix4fv(program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(clip_to_world));
+    glUniformMatrix4fv(program.getLoc("model"), 1, GL_FALSE, glm::value_ptr(debug_clip_to_world));
     glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, (void*)0);
 }
 
@@ -429,7 +428,7 @@ ShadingPass::ShadingPass(unsigned int width, unsigned int height)
     skybox_choice = 0;
 }
 
-void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, Cubemap* cubemap, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance, unsigned int vao)
+void ShadingPass::execute(glm::mat4 viewMatrix, glm::mat4 projMatrix, float zNear, float zFar, glm::vec3 lightDir, glm::mat4 lightMatrix, Cubemap* cubemap, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance, unsigned int vao)
 {
     ZoneScopedN("Shading pass");
     TracyGpuZone("Shading pass");
@@ -453,8 +452,8 @@ void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 li
     if (skyboxMap) {
         glBindVertexArray(cube_vao);
         glUseProgram(skybox_program.id());
-        glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(camera.getPerspectiveMatrix() * glm::mat4(glm::mat3(camera.getViewMatrix()))));
-        glUniform1f(skybox_program.getLoc("scale"), 0.5f*(camera.zNear+camera.zFar));
+        glUniformMatrix4fv(skybox_program.getLoc("viewproj"), 1, GL_FALSE, glm::value_ptr(projMatrix * glm::mat4(glm::mat3(viewMatrix))));
+        glUniform1f(skybox_program.getLoc("scale"), 0.5f*(zNear+zFar));
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxMap->id());
         glUniform1i(skybox_program.getLoc("skybox"), 0);
@@ -473,7 +472,8 @@ void ShadingPass::execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 li
     glUniform1i(shading_program.getLoc("pointLightsNum"), 1);
     glUniform3fv(shading_program.getLoc("pointLights[0].position"), 1, lightPos);
     glUniform3fv(shading_program.getLoc("pointLights[0].color"), 1, lightColor);
-    glUniform3f(shading_program.getLoc("camPos"), camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
+    glm::vec3 cameraPosition = glm::vec3(-viewMatrix[3]);
+    glUniform3fv(shading_program.getLoc("camPos"), 1, glm::value_ptr(cameraPosition));
     glUniform1i(shading_program.getLoc("albedotex"), 0);
     glUniform1i(shading_program.getLoc("normaltex"), 1);
     glUniform1i(shading_program.getLoc("depthtex"), 2);
@@ -534,7 +534,7 @@ void ShadingPass::reloadShaders()
     skybox_program.reload();
 }
 
-void Renderer::render(const Scene& scene, Camera& camera)
+void Renderer::render(Scene& scene, Camera& camera)
 {
     ZoneScopedN("Render (CPU)");
     TracyGpuZone("Render (GPU)");
@@ -594,8 +594,12 @@ void Renderer::render(const Scene& scene, Camera& camera)
     jitter_mat[3][0] = jitter_ndc.x;
     jitter_mat[3][1] = jitter_ndc.y;
 
+    glm::mat4 viewMatrix = camera.getViewMatrix();
+    glm::mat4 projMatrix = camera.getPerspectiveMatrix();
+    glm::mat4 viewProjMatrix = projMatrix * viewMatrix;
+
     if (enable_frustrum_culling) {
-        doFrustrumCulling(scene.objects, culling_camera, objects_culled);
+        doFrustumCulling(scene.objects, viewProjMatrix, objects_culled);
     } else {
         objects_culled = scene.objects; 
     }
@@ -606,7 +610,8 @@ void Renderer::render(const Scene& scene, Camera& camera)
         ImGui::Text("Num. remaining: %u\n", objects_culled.size());
     }
 
-    glm::mat4 clip_from_world = jitter_mat * proj_mat * camera.getViewMatrix();
+
+    glm::mat4 clip_from_world = jitter_mat * viewProjMatrix;
     geometry_pass.execute(objects_culled, clip_from_world, loader);
 
     if (shadow_pass.enabled) {
@@ -622,7 +627,7 @@ void Renderer::render(const Scene& scene, Camera& camera)
     glDisable(GL_DEPTH_TEST);
 
     if (ssao_pass.enabled) {
-        ssao_pass.execute(camera.getViewMatrix(), jitter_mat * proj_mat, geometry_pass.normal_tex, geometry_pass.depth_texture, dummy_vao);
+        ssao_pass.execute(viewMatrix, jitter_mat * proj_mat, geometry_pass.normal_tex, geometry_pass.depth_texture, dummy_vao);
     } else {
         float white[] = { 1.f, 1.f, 1.f, 1.f };
         glBindFramebuffer(GL_FRAMEBUFFER, ssao_pass.fbo);
@@ -631,12 +636,11 @@ void Renderer::render(const Scene& scene, Camera& camera)
     }
 
     // === SHADING PASS ===
-    shading_pass.execute(camera, lightDir, lightMatrix, skybox, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance, dummy_vao);
-    //shading_pass.execute(camera, lightDir, lightMatrix, &irradiance, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance);
+    shading_pass.execute(viewMatrix, projMatrix, camera.zNear, camera.zFar, lightDir, lightMatrix, skybox, geometry_pass.albedo_tex, geometry_pass.normal_tex, shadow_pass.shadow_tex, geometry_pass.rough_met_tex, geometry_pass.position_tex, ssao_pass.ssao_tex, irradiance, dummy_vao);
 
     if (taa_pass.enabled) {
         // === TAA PASS ===
-        taa_pass.execute(camera, geometry_pass.position_tex, shading_pass.shading_tex, jitter_ndc, dummy_vao);
+        taa_pass.execute(projMatrix * viewMatrix, geometry_pass.position_tex, shading_pass.shading_tex, jitter_ndc, dummy_vao);
     }
 
     unsigned int final_tex = taa_pass.enabled ? taa_pass.taa_tex : shading_pass.shading_tex;
@@ -688,11 +692,11 @@ void Renderer::render(const Scene& scene, Camera& camera)
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     if (enable_aabbs) {
-		debug_draw_pass.execute(objects_culled, camera.getPerspectiveMatrix() * camera.getViewMatrix());
+		debug_draw_pass.execute(objects_culled, viewProjMatrix);
     }
 
     if (enable_debug_camera) {
-        debug_draw_pass.drawFrustum(culling_camera, camera);
+        debug_draw_pass.drawFrustum(culling_camera.getPerspectiveMatrix() * culling_camera.getViewMatrix(), viewProjMatrix);
     }
 
     if (ImGui::Button("Screenshot") && can_screenshot) {
@@ -742,7 +746,7 @@ TAAPass::TAAPass(unsigned int width, unsigned int height)
     enabled = true;
 }
 
-void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex, glm::vec2 jitter, unsigned int vao)
+void TAAPass::execute(glm::mat4 world_to_clip, unsigned int position_tex, unsigned int shading_tex, glm::vec2 jitter, unsigned int vao)
 {
     ZoneScopedN("TAA pass");
     TracyGpuZone("TAA pass");
@@ -776,7 +780,7 @@ void TAAPass::execute(const Camera& camera, unsigned int position_tex, unsigned 
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    history_clip_from_world = camera.getPerspectiveMatrix() * camera.getViewMatrix();
+    history_clip_from_world = world_to_clip;
 
     if (update_history) {
         glCopyImageSubData(taa_tex, GL_TEXTURE_2D, 0, 0, 0, 0, history_tex, GL_TEXTURE_2D, 0, 0, 0, 0, width, height, 1);
@@ -832,11 +836,9 @@ void Renderer::setSkyboxFromEquirectangular(const ImageTexture &texture, unsigne
 
 #define MIN(a, b) ((a > b) ? a : b)
 
-void doFrustrumCulling(const std::vector<Object>& objects, Camera cam, std::vector<Object>& remaining)
+void doFrustumCulling(std::vector<Object>& objects, glm::mat4 world_to_clip, std::vector<Object>& remaining)
 {
     ZoneScopedN("Frustum culling");
-
-    glm::mat4 world_to_clip = cam.getPerspectiveMatrix() * cam.getViewMatrix();
 
     remaining.clear();
 
