@@ -44,7 +44,7 @@ private:
 class SSAOPass {
 public:
     SSAOPass(unsigned int width, unsigned int height);
-    void execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int normal_tex, unsigned int rough_met_tex, unsigned int depth_tex, unsigned int vao);
+    void execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int normal_tex, unsigned int depth_tex, unsigned int vao);
     void drawUI();
     void reloadShaders();
 
