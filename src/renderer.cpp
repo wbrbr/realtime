@@ -197,6 +197,11 @@ void GeometryPass::execute(const std::vector<Object>& objects, glm::mat4 clip_fr
     }
 }
 
+void GeometryPass::reloadShaders()
+{
+    program.reload();
+}
+
 DebugDrawPass::DebugDrawPass()
     : program("shaders/debug_draw_box.vert", "shaders/debug_draw_box.frag")
 {
@@ -285,6 +290,11 @@ void DebugDrawPass::drawFrustum(const Camera& frustumCamera, const Camera& viewC
     glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, (void*)0);
 }
 
+void DebugDrawPass::reloadShaders()
+{
+    program.reload();
+}
+
 ShadowPass::ShadowPass()
     : program("shaders/depth.vert", "shaders/depth.frag")
 {
@@ -327,6 +337,11 @@ void ShadowPass::drawUI()
     if (ImGui::CollapsingHeader("Shadow mapping")) {
         ImGui::Checkbox("Enable shadow mapping", &enabled);
     }
+}
+
+void ShadowPass::reloadShaders()
+{
+    program.reload();
 }
 
 SSAOPass::SSAOPass(unsigned int width, unsigned int height)
@@ -388,6 +403,11 @@ void SSAOPass::drawUI()
         ImGui::DragFloat("Radius", &radius, 1.f, 0.f, 1.f);
         ImGui::DragFloat("Bias", &bias, 1.f, 0.f, 1.f);
     }
+}
+
+void SSAOPass::reloadShaders()
+{
+    program.reload();
 }
 
 ShadingPass::ShadingPass(unsigned int width, unsigned int height)
@@ -511,6 +531,13 @@ void ShadingPass::drawUI()
         const char* items[] = {"skybox", "irradiance"};
         ImGui::Combo("Skybox Display", &skybox_choice, items, 2);
     }
+}
+
+void ShadingPass::reloadShaders()
+{
+    draw_program.reload();
+    shading_program.reload();
+    skybox_program.reload();
 }
 
 void Renderer::render(const Scene& scene, Camera& camera)
@@ -771,6 +798,11 @@ void TAAPass::drawUI()
     }
 }
 
+void TAAPass::reloadShaders()
+{
+    program.reload();
+}
+
 void Renderer::setSkybox(Cubemap* skybox)
 {
     this->skybox = skybox;
@@ -843,4 +875,14 @@ void doFrustrumCulling(const std::vector<Object>& objects, Camera cam, std::vect
             remaining.push_back(objects[i]);
         }
     }
+}
+
+void Renderer::reloadShaders()
+{
+    geometry_pass.reloadShaders();
+    shadow_pass.reloadShaders();
+    ssao_pass.reloadShaders();
+    shading_pass.reloadShaders();
+    taa_pass.reloadShaders();
+    debug_draw_pass.reloadShaders();
 }

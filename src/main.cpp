@@ -267,13 +267,24 @@ Scene loadFile(std::string path, TextureLoader& loader)
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (key == GLFW_KEY_F && action == GLFW_RELEASE) {
-        flyMode = !flyMode;
-        if (flyMode) {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        } else {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        }
+    if (action == GLFW_RELEASE) {
+        switch (key) {
+			case GLFW_KEY_F: 
+				flyMode = !flyMode;
+				if (flyMode) {
+					glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+				} else {
+					glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+				}
+				break;
+
+			case GLFW_KEY_R:
+            {
+				Context* ctx = static_cast<Context*>(glfwGetWindowUserPointer(window));
+				ctx->renderer.reloadShaders();
+				break;
+			}
+		}
     }
 }
 

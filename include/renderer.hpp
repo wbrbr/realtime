@@ -12,6 +12,7 @@ class GeometryPass {
 public:
     GeometryPass(unsigned int width, unsigned int height);
     void execute(const std::vector<Object>& objects, glm::mat4 clip_from_world, TextureLoader* loader);
+    void reloadShaders();
 
     unsigned int albedo_tex;
     unsigned int normal_tex;
@@ -30,6 +31,7 @@ public:
     ShadowPass();
     void execute(const std::vector<Object>& objects, glm::mat4 lightMatrix);
     void drawUI();
+    void reloadShaders();
 
     unsigned int shadow_tex;
     bool enabled;
@@ -44,6 +46,7 @@ public:
     SSAOPass(unsigned int width, unsigned int height);
     void execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int normal_tex, unsigned int rough_met_tex, unsigned int depth_tex, unsigned int vao);
     void drawUI();
+    void reloadShaders();
 
     unsigned int ssao_tex;
     bool enabled;
@@ -63,6 +66,7 @@ public:
     ShadingPass(unsigned int width, unsigned int height);
     void execute(const Camera& camera, glm::vec3 lightDir, glm::mat4 lightMatrix, Cubemap* cubemap, unsigned int albedo_tex, unsigned int normal_tex, unsigned int shadow_tex, unsigned int rough_met_tex, unsigned int position_tex, unsigned int ssao_tex, const Cubemap& irradiance, unsigned int vao);
     void drawUI();
+    void reloadShaders();
 
     unsigned int shading_tex;
     unsigned int fbo;
@@ -89,6 +93,7 @@ public:
     TAAPass(unsigned int width, unsigned int height);
     void execute(const Camera& camera, unsigned int position_tex, unsigned int shading_tex, glm::vec2 jitter, unsigned int vao);
     void drawUI();
+    void reloadShaders();
 
     bool enabled;
     unsigned int taa_tex;
@@ -109,6 +114,7 @@ public:
     DebugDrawPass();
     void execute(const std::vector<Object>& objects, glm::mat4 clip_from_world);
     void drawFrustum(const Camera& frustumCamera, const Camera& viewCamera);
+    void reloadShaders();
 
 private:
     Shader program;
@@ -123,6 +129,7 @@ public:
     void render(const Scene& scene, Camera& cam);
     void setSkybox(Cubemap* skybox);
     void setSkyboxFromEquirectangular(const ImageTexture& texture, unsigned int width, unsigned int height);
+    void reloadShaders();
 
 private:
 

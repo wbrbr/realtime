@@ -67,6 +67,8 @@ unsigned int createProgram(unsigned int* shaders, unsigned int num_shaders)
 
 Shader::Shader(std::string vPath, std::string fPath)
 {
+    m_vertex_path = vPath;
+    m_fragment_path = fPath;
     unsigned int vertex_shader = loadShaderFromFile(GL_VERTEX_SHADER, vPath);
     unsigned int fragment_shader = loadShaderFromFile(GL_FRAGMENT_SHADER, fPath);
     unsigned int shaders[2] = { vertex_shader, fragment_shader };
@@ -78,6 +80,7 @@ Shader::Shader(std::string vPath, std::string fPath)
 
 Shader::Shader(std::string cPath)
 {
+    m_compute_path = cPath;
     unsigned int shader = loadShaderFromFile(GL_COMPUTE_SHADER, cPath);
     m_id = createProgram(&shader, 1);
     glDeleteShader(shader);
@@ -106,4 +109,33 @@ int Shader::getLoc(std::string name)
     } else {
         return it->second;
     }
+}
+
+void Shader::bind()
+{
+    glUseProgram(m_id);
+}
+
+void Shader::unbind()
+{
+    glUseProgram(0);
+}
+
+void Shader::reload()
+{
+    glDeleteProgram(m_id);
+    // TODO: deduplicate code
+    if (!m_vertex_path.empty()) {
+        unsigned int vertex_shader = loadShaderFromFile(GL_VERTEX_SHADER, m_vertex_path);
+        unsigned int fragment_shader = loadShaderFromFile(GL_FRAGMENT_SHADER, m_fragment_path);
+        unsigned int shaders[2] = { vertex_shader, fragment_shader };
+        m_id = createProgram(shaders, 2);
+        glDeleteShader(vertex_shader);
+        glDeleteShader(fragment_shader);
+    } else {
+        unsigned int shader = loadShaderFromFile(GL_COMPUTE_SHADER, m_compute_path);
+        m_id = createProgram(&shader, 1);
+        glDeleteShader(shader);
+    }
+    m_locs.clear();
 }

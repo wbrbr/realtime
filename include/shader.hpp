@@ -13,10 +13,19 @@ public:
     ~Shader();
     int getLoc(std::string name);
     unsigned int id();
+    void bind();
+    void unbind();
+    void reload();
 
 private:
     unsigned int m_id;
     std::unordered_map<std::string, int> m_locs;
     std::string m_name;
+
+    std::string m_vertex_path, m_fragment_path, m_compute_path;
+};
+
+struct ShaderID {
+    unsigned int id;
 };
 #endif
