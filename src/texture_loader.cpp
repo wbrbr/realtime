@@ -117,4 +117,10 @@ void TextureLoader::load()
     for (ImageDesc desc : buffers) {
         textures[desc.id] = ImageTexture(desc.data, desc.width, desc.height);
     }
+
+    for (ImageDesc desc : buffers) {
+        free(desc.data);
+    }
+
+    buffers.clear();
 }

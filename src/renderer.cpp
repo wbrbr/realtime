@@ -12,6 +12,19 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+struct GLScopedDebugGroup
+{
+    GLScopedDebugGroup(const char* msg)
+    {
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, msg);
+    }
+
+    ~GLScopedDebugGroup()
+    {
+        glPopDebugGroup(); 
+    }
+};
+
 void doFrustumCulling(std::vector<Object>& objects, glm::mat4 world_to_clip, std::vector<Object>& remaining);
 
 void fillNoiseTexture(unsigned int tex)
@@ -169,6 +182,7 @@ void GeometryPass::execute(const std::vector<Object>& objects, glm::mat4 clip_fr
 {
     ZoneScopedN("Geometry Pass");
     TracyGpuZone("Geometry pass");
+    GLScopedDebugGroup("Geometry pass");
 
     // === GEOMETRY PASS ===
     glEnable(GL_DEPTH_TEST);
@@ -243,6 +257,7 @@ void DebugDrawPass::execute(const std::vector<Object>& objects, glm::mat4 clip_f
 {
     ZoneScopedN("Debug Draw Pass");
     TracyGpuZone("Debug Draw Pass");
+    GLScopedDebugGroup("Debug Draw Pass");
 
     vertices.clear();
 
@@ -312,6 +327,8 @@ void ShadowPass::execute(const std::vector<Object>& objects, glm::mat4 lightMatr
 {
     ZoneScopedN("Shadow map");
     TracyGpuZone("Shadow map");
+    GLScopedDebugGroup("Shadow map");
+
     // === DIRECTIONAL SHADOW MAP PASS ===
     glViewport(0, 0, 2048, 2048);
     glCullFace(GL_FRONT);
@@ -366,6 +383,7 @@ void SSAOPass::execute(glm::mat4 view_mat, glm::mat4 proj_mat, unsigned int norm
 {
     ZoneScopedN("SSAO");
     TracyGpuZone("SSAO");
+    GLScopedDebugGroup("SSAO");
 
     fillNoiseTexture(noise_tex);
     // === SSAO PASS ===
@@ -432,6 +450,7 @@ void ShadingPass::execute(glm::mat4 viewMatrix, glm::mat4 projMatrix, float zNea
 {
     ZoneScopedN("Shading pass");
     TracyGpuZone("Shading pass");
+    GLScopedDebugGroup("Shading pass");
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -538,6 +557,7 @@ void Renderer::render(Scene& scene, Camera& camera)
 {
     ZoneScopedN("Render (CPU)");
     TracyGpuZone("Render (GPU)");
+    GLScopedDebugGroup("Render");
 
     if (ImGui::CollapsingHeader("Camera")) {
         ImGui::DragFloat("Near plane", &camera.zNear);
@@ -750,6 +770,8 @@ void TAAPass::execute(glm::mat4 world_to_clip, unsigned int position_tex, unsign
 {
     ZoneScopedN("TAA pass");
     TracyGpuZone("TAA pass");
+    GLScopedDebugGroup("TAA pass");
+
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
     glUseProgram(program.id());
