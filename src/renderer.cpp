@@ -491,7 +491,7 @@ void ShadingPass::execute(glm::mat4 viewMatrix, glm::mat4 projMatrix, float zNea
     glUniform1i(shading_program.getLoc("pointLightsNum"), 1);
     glUniform3fv(shading_program.getLoc("pointLights[0].position"), 1, lightPos);
     glUniform3fv(shading_program.getLoc("pointLights[0].color"), 1, lightColor);
-    glm::vec3 cameraPosition = glm::vec3(-viewMatrix[3]);
+    glm::vec3 cameraPosition = glm::vec3(glm::inverse(viewMatrix)[3]);
     glUniform3fv(shading_program.getLoc("camPos"), 1, glm::value_ptr(cameraPosition));
     glUniform1i(shading_program.getLoc("albedotex"), 0);
     glUniform1i(shading_program.getLoc("normaltex"), 1);
