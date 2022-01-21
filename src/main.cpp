@@ -186,7 +186,6 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
     if (scene->HasMaterials()) {
         aiMaterial* material = scene->mMaterials[m->mMaterialIndex];
         material->GetTexture(aiTextureType_DIFFUSE, 0, &filePath);
-        aiString texPath(prefix);
         if (filePath.length > 0) {
             obj.material.albedoMap = loadTextureFromPath(prefix, filePath, scene, loader, glm::vec4(.7, .7, .7, 1));
         } else {
@@ -194,6 +193,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
             unsigned char color[] = { 255, 0, 255, 255 };
             obj.material.albedoMap = loader.addMem(color, 1, 1);
         }
+        filePath.Clear();
         material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &filePath);
         if (filePath.length > 0) {
             obj.material.roughnessMetallicMap = loadTextureFromPath(prefix, filePath, scene, loader, glm::vec4(0,1,0,1));
@@ -203,7 +203,6 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
             unsigned char color[] = { 0, 255, 0, 255 };
             obj.material.roughnessMetallicMap = loader.addMem(color, 1, 1);
         }
-        texPath = prefix;
         bool normalMap = true;
         if (material->GetTextureCount(aiTextureType_NORMALS) > 0) {
             material->GetTexture(aiTextureType_NORMALS, 0, &filePath);
