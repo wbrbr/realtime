@@ -6,12 +6,12 @@
 #include <stdio.h>
 #include <string>
 
-unsigned int loadShaderFromFile(unsigned int type, std::string path)
+int loadShaderFromFile(unsigned int type, std::string path)
 {
     std::ifstream file(path);
     if (!file.is_open()) {
         std::cerr << "Error opening vertex shader: " << path << std::endl;
-        exit(1);
+        return -1;
     }
     std::stringstream buf;
     buf << file.rdbuf();
@@ -36,7 +36,7 @@ unsigned int loadShaderFromFile(unsigned int type, std::string path)
         } else {
             std::cerr << "Fragment:" << shader_log << std::endl;
         }
-        exit(1);
+        return -1;
     }
 
     return shader;
@@ -69,9 +69,14 @@ Shader::Shader(std::string vPath, std::string fPath)
 {
     m_vertex_path = vPath;
     m_fragment_path = fPath;
-    unsigned int vertex_shader = loadShaderFromFile(GL_VERTEX_SHADER, vPath);
-    unsigned int fragment_shader = loadShaderFromFile(GL_FRAGMENT_SHADER, fPath);
-    unsigned int shaders[2] = { vertex_shader, fragment_shader };
+    int vertex_shader = loadShaderFromFile(GL_VERTEX_SHADER, vPath);
+    int fragment_shader = loadShaderFromFile(GL_FRAGMENT_SHADER, fPath);
+
+    if (vertex_shader < 0 || fragment_shader < 0) {
+        exit(1);
+    }
+
+    unsigned int shaders[2] = { (unsigned)vertex_shader, (unsigned)fragment_shader };
     m_id = createProgram(shaders, 2);
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
@@ -123,18 +128,26 @@ void Shader::unbind()
 
 void Shader::reload()
 {
-    glDeleteProgram(m_id);
     // TODO: deduplicate code
     if (!m_vertex_path.empty()) {
-        unsigned int vertex_shader = loadShaderFromFile(GL_VERTEX_SHADER, m_vertex_path);
-        unsigned int fragment_shader = loadShaderFromFile(GL_FRAGMENT_SHADER, m_fragment_path);
-        unsigned int shaders[2] = { vertex_shader, fragment_shader };
+        int vertex_shader = loadShaderFromFile(GL_VERTEX_SHADER, m_vertex_path);
+        int fragment_shader = loadShaderFromFile(GL_FRAGMENT_SHADER, m_fragment_path);
+        if (vertex_shader < 0 || fragment_shader < 0) {
+            return;
+        }
+        glDeleteProgram(m_id);
+        unsigned int shaders[2] = { (unsigned)vertex_shader, (unsigned)fragment_shader };
         m_id = createProgram(shaders, 2);
         glDeleteShader(vertex_shader);
         glDeleteShader(fragment_shader);
     } else {
-        unsigned int shader = loadShaderFromFile(GL_COMPUTE_SHADER, m_compute_path);
-        m_id = createProgram(&shader, 1);
+        int shader = loadShaderFromFile(GL_COMPUTE_SHADER, m_compute_path);
+        if (shader < 0) {
+            return;
+        }
+        glDeleteProgram(m_id);
+        unsigned int shader_id = (unsigned)shader;
+        m_id = createProgram(&shader_id, 1);
         glDeleteShader(shader);
     }
     m_locs.clear();
