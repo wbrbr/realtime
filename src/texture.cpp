@@ -54,7 +54,7 @@ ImageTexture::ImageTexture(std::string path, bool srgb)
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-ImageTexture::ImageTexture(unsigned char* data, unsigned int width, unsigned int height)
+ImageTexture::ImageTexture(unsigned char* data, unsigned int width, unsigned int height, unsigned int type)
 {
     ZoneScoped;
     TracyGpuZone("ImageTexture::ImageTexture");
@@ -67,9 +67,31 @@ ImageTexture::ImageTexture(unsigned char* data, unsigned int width, unsigned int
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_width, m_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, type, m_width, m_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+ImageTexture::ImageTexture(unsigned char* data, unsigned int width, unsigned int height, unsigned int type, unsigned int image_size)
+{
+    ZoneScoped;
+    TracyGpuZone("ImageTexture::ImageTexture");
+    m_width = width;
+    m_height = height;
+    m_channels = 4;
+    glGenTextures(1, &m_id);
+    glBindTexture(GL_TEXTURE_2D, m_id);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glCompressedTexImage2D(GL_TEXTURE_2D, 0, type, m_width, m_height, 0, image_size, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+ImageTexture::ImageTexture()
+{
 }
 
 ImageTexture::~ImageTexture()

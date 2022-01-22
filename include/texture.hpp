@@ -8,7 +8,9 @@ unsigned int create_texture(unsigned int width, unsigned int height, int interna
 class ImageTexture {
 public:
     ImageTexture(std::string path, bool srgb = false);
-    ImageTexture(unsigned char* data, unsigned int width, unsigned int height);
+    ImageTexture(unsigned char* data, unsigned int width, unsigned int height, unsigned int type);
+    ImageTexture(unsigned char* data, unsigned int width, unsigned int height, unsigned int type, unsigned int image_size);
+    ImageTexture();
     ~ImageTexture();
     unsigned int id() const;
     unsigned int width() const;

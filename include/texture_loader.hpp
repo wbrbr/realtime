@@ -15,7 +15,7 @@ class TextureLoader {
 public:
     ~TextureLoader();
     TexID queueFile(std::string path, glm::vec4 defaultColor = glm::vec4(1,0,1,1));
-    TexID addMem(unsigned char* data, unsigned int w, unsigned int h);
+    TexID addMem(unsigned char* data, unsigned int w, unsigned int h, unsigned int type);
     ImageTexture* get(TexID id);
     void load();
 

@@ -61,7 +61,7 @@ TexID loadTextureFromPath(aiString prefix, aiString fileName, const aiScene* sce
         if (data == nullptr) {
             std::cerr << "Embedded texture loading failed: " << stbi_failure_reason() << std::endl;
         }
-        return loader.addMem(data, w, h);
+        return loader.addMem(data, w, h, GL_RGBA);
     } else {
         aiString texPath = prefix;
         texPath.Append(fileName.C_Str());
@@ -191,7 +191,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
         } else {
             std::cerr << "no baseColor texture" << std::endl;
             unsigned char color[] = { 255, 0, 255, 255 };
-            obj.material.albedoMap = loader.addMem(color, 1, 1);
+            obj.material.albedoMap = loader.addMem(color, 1, 1, GL_RGBA);
         }
         filePath.Clear();
         material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &filePath);
@@ -201,7 +201,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
             std::cerr << "no roughness/metallic texture" << std::endl;
             // roughness = 1, metallic = 0
             unsigned char color[] = { 0, 255, 0, 255 };
-            obj.material.roughnessMetallicMap = loader.addMem(color, 1, 1);
+            obj.material.roughnessMetallicMap = loader.addMem(color, 1, 1, GL_RGBA);
         }
         bool normalMap = true;
         if (material->GetTextureCount(aiTextureType_NORMALS) > 0) {
@@ -217,7 +217,7 @@ Object loadMesh(std::string path, const aiScene* scene, unsigned int mesh_index,
         if (!normalMap) {
             std::cerr << "no normal map" << std::endl;
             unsigned char color[] = { 128, 128, 255, 255 };
-            obj.material.normalMap = loader.addMem(color, 1, 1);
+            obj.material.normalMap = loader.addMem(color, 1, 1, GL_RGBA);
         }
     }
 
@@ -287,7 +287,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
 }
 
-bool endsWith(const char* str, const char* substr)
+static bool endsWith(const char* str, const char* substr)
 {
     size_t str_len = strlen(str);
     size_t substr_len = strlen(substr);
@@ -314,8 +314,8 @@ void drop_callback(GLFWwindow* window, int count, const char** paths)
     for (int i = 0; i < count; i++)
     {
         const char* path = paths[i];
-        if (endsWith(path, ".gltf")) {
-            std::cout << "Loading gltf\n" << std::endl;
+        if (endsWith(path, ".gltf") || endsWith(path, ".fbx")) {
+            std::cout << "Loading scene\n" << std::endl;
             ctx->scene = loadFile(std::string(path), ctx->loader);
             std::cout << "Loading textures\n" << std::endl;
             ctx->loader.load();
