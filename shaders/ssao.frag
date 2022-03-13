@@ -59,7 +59,6 @@ void main()
 
             // TODO: don't compute the position, just linearize the depth
             float sampleDepth = reconstruct_view_position(coords.xy).z;
-            occlusion += (sampleDepth >= sample_.z ? 1.0 : 0.0);
             float originalDepth = position.z;
             float rangeCheck = smoothstep(0.0, 1.0, radius / abs(originalDepth - sampleDepth));
             occlusion += (sampleDepth >= sample_.z + bias ? 1.0 : 0.0) * rangeCheck;
